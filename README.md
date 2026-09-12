@@ -63,7 +63,7 @@ I'd love to hear your thoughts and experiences with Tabbin! Here are several way
 - 🐞 **Bug reports & feature requests:** [Open an issue](https://github.com/Vanz15/tabbin/issues)
 - 💬 **General feedback:** [Share your thoughts](https://github.com/Vanz15/tabbin/issues/new/choose)
 - 📧 **Direct contact:** Email [vanz15@users.noreply.github.com](mailto:vanz15@users.noreply.github.com)
-- 💼 **Professional connection:** [LinkedIn @ahpmartinez](https://www.linkedin.com/in/ahpmartinez/)
+- 💼 **Connect with me:** [LinkedIn @ahpmartinez](https://www.linkedin.com/in/ahpmartinez/)
 - 📸 **Behind the scenes & updates:** [@ibaaannn__ on Instagram](https://www.instagram.com/ibaaannn__/)
 
 ### When reporting issues, please include:
