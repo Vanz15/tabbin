@@ -56,6 +56,24 @@ Default notes created on first run:
 - **Ideas** — capture quick thoughts (teal tab)
 - **Today** — daily task list (pink tab)
 
+## Feedback & Support
+
+I'd love to hear your thoughts and experiences with Tabbin! Here are several ways to connect:
+
+- 🐞 **Bug reports & feature requests:** [Open an issue](https://github.com/Vanz15/tabbin/issues)
+- 💬 **General feedback:** [Share your thoughts](https://github.com/Vanz15/tabbin/issues/new/choose)
+- 📧 **Direct contact:** Email [vanz15@users.noreply.github.com](mailto:vanz15@users.noreply.github.com)
+- 💼 **Professional connection:** [LinkedIn @ahpmartinez](https://www.linkedin.com/in/ahpmartinez/)
+- 📸 **Behind the scenes & updates:** [@ibaaannn__ on Instagram](https://www.instagram.com/ibaaannn__/)
+
+### When reporting issues, please include:
+- Windows version (run `winver` to check)
+- What you were doing when the issue occurred
+- Whether the dock appeared in fullscreen apps
+- Screenshot if visual bug
+
+Thank you for helping improve Tabbin! 🎯
+
 ## Development
 
 ### Prerequisites
