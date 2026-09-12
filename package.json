@@ -1,0 +1,106 @@
+{
+  "name": "tabbin",
+  "version": "1.0.0-beta.1",
+  "description": "A lightweight, hover-activated workspace for organizing quick notes without interrupting your workflow.",
+  "main": "main.js",
+  "author": "Vanz15 <vanz15@users.noreply.github.com>",
+  "homepage": "https://github.com/Vanz15/tabbin",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test_sticky_dock.js && node test_v2_features.js",
+    "build:win": "electron-builder --win portable nsis --x64",
+    "build:mac": "electron-builder --mac dmg zip",
+    "build:all": "electron-builder --win portable nsis --mac dmg zip",
+    "build:dir": "electron-packager . Tabbin --platform=win32 --arch=x64 --out=dist --overwrite --asar"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^26.15.3",
+    "electron-packager": "^17.1.2",
+    "electron-reload": "^2.0.0-alpha.1"
+  },
+  "build": {
+    "appId": "com.vanz15.tabbin",
+    "productName": "Tabbin",
+    "copyright": "Copyright © 2026 Vanz15",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "loading.html",
+      "dock.html",
+      "note.html",
+      "icon.ico",
+      "icon.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Vanz15",
+        "repo": "tabbin",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "Tabbin-Portable.exe"
+    },
+    "nsis": {
+      "artifactName": "Tabbin-Setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tabbin",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "include": "installer.nsh"
+    },
+    "mac": {
+      "icon": "icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    }
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
+  }
+}
