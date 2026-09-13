@@ -62,8 +62,8 @@ function layout() {
   const config = loadConfig();
   const fullWidth = 390;
   const hiddenWidth = 10;
-  const height = Math.min(760, display.workAreaSize.height - 80);
-  const y = display.workArea.y + 40;
+  const height = Math.min(760, display.workAreaSize.height - 120);
+  const y = display.workArea.y + 80;
   const width = ['revealed', 'revealing', 'hiding'].includes(dockState) ? fullWidth : hiddenWidth;
   const x = config.edge === 'right' ? display.workArea.x + display.workArea.width - width : display.workArea.x;
   dock.setBounds({ x, y, width, height });
@@ -119,7 +119,7 @@ function startEdgeWatcher() {
 function createDock() {
   const display = screen.getPrimaryDisplay();
   dock = new BrowserWindow({
-    width: 10, height: Math.min(760, display.workAreaSize.height - 80), x: display.workArea.x, y: display.workArea.y + 40,
+    width: 6, height: Math.min(760, display.workAreaSize.height - 80), x: display.workArea.x, y: display.workArea.y + 40,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, show: false, focusable: false,
     icon: appIcon(),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
