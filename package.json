@@ -46,7 +46,7 @@
         "provider": "github",
         "owner": "Vanz15",
         "repo": "tabbin",
-        "releaseType": "release"
+        "releaseType": "latest"
       }
     ],
     "win": {

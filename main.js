@@ -146,7 +146,7 @@ function setupAutoUpdater() {
   autoUpdater.on('download-progress', progress => broadcast('update:progress', progress));
   autoUpdater.on('update-downloaded', info => broadcast('update:downloaded', info));
   autoUpdater.on('error', error => broadcast('update:error', { message: error.message }));
-  if (app.isPackaged) autoUpdater.checkForUpdates().catch(() => {});
+  if (app.isPackaged) autoUpdater.checkForUpdates().catch(error => broadcast('update:error', { message: error.message }));
 }
 function openNote(id) {
   clearHideTimer();
