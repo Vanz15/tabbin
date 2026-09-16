@@ -2,16 +2,29 @@ const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
 let dock;
 let loadingWindow;
 let dockState = 'hidden';
 let hideTimer = null;
 const noteWindows = new Map();
 
+const userDataFile = name => path.join(app.getPath('userData'), name);
+
+// Crash logging — must come after userDataFile is defined
+process.on('uncaughtException', (err) => {
+  try { fs.appendFileSync(userDataFile('crash.log'), `${new Date().toISOString()} ${err.stack}\n`); } catch {}
+});
+process.on('unhandledRejection', (err) => {
+  try { fs.appendFileSync(userDataFile('crash.log'), `${new Date().toISOString()} [unhandledRejection] ${err.stack}\n`); } catch {}
+});
+
 if (!hasSingleInstanceLock) {
+  console.log('[Tabbin] Another instance running - quitting.');
   app.quit();
 } else {
   app.on('second-instance', () => {
@@ -21,8 +34,6 @@ if (!hasSingleInstanceLock) {
   });
 }
 
-
-const userDataFile = name => path.join(app.getPath('userData'), name);
 const appIcon = () => path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const configFile = () => userDataFile('config.json');
 const dataFile = () => userDataFile('notes.json');
@@ -43,13 +54,37 @@ function saveConfig(config) {
   fs.writeFileSync(configFile(), JSON.stringify(config, null, 2));
   return config;
 }
+
+// Load notes with backup fallback: primary → .bak → seed
 function loadNotes() {
   try { return JSON.parse(fs.readFileSync(dataFile(), 'utf8')); }
-  catch { return seed; }
+  catch {
+    try { return JSON.parse(fs.readFileSync(dataFile() + '.bak', 'utf8')); }
+    catch { return seed; }
+  }
 }
+
+// Atomic write: backup old → write temp → rename. Serialized via writeChain
+// to prevent concurrent writes (e.g. two note windows autosaving at once).
+let writeChain = Promise.resolve();
 function saveNotes(notes) {
-  fs.mkdirSync(path.dirname(dataFile()), { recursive: true });
-  fs.writeFileSync(dataFile(), JSON.stringify(notes, null, 2));
+  const file = dataFile();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  // Keep last-known-good state as backup before overwriting
+  try { fs.copyFileSync(file, file + '.bak'); } catch {}
+  // Atomic write via temp file + rename
+  const tmp = file + '.tmp.' + process.pid;
+  fs.writeFileSync(tmp, JSON.stringify(notes, null, 2));
+  fs.renameSync(tmp, file);
+}
+// Serialize all writes to prevent lost updates when multiple IPC calls land
+// in adjacent ticks (e.g. two note windows autosaving near-simultaneously).
+// Note: this prevents file corruption but does NOT prevent logical last-write-wins
+// when two handlers both read via loadNotes() before either's write resolves —
+// concurrent edits to different notes may silently race.
+function queueWrite(notes) {
+  writeChain = writeChain.then(() => saveNotes(notes));
+  return writeChain;
 }
 function broadcast(channel, payload) {
   if (dock && !dock.isDestroyed()) dock.webContents.send(channel, payload);
@@ -178,6 +213,7 @@ function openNote(id) {
 }
 
 if (hasSingleInstanceLock) app.whenReady().then(() => {
+  console.log('[Tabbin] App starting...');
   app.setAppUserModelId('com.vanz15.tabbin');
   Menu.setApplicationMenu(null);
   if (!fs.existsSync(configFile())) saveConfig(defaultConfig);
@@ -185,7 +221,10 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
   createLoadingWindow();
   createDock();
   setupAutoUpdater();
-  setTimeout(closeLoadingWindow, 900);
+  setTimeout(() => {
+    closeLoadingWindow();
+    console.log('[Tabbin] Ready - hover left edge to reveal dock');
+  }, 900);
 });
 app.on('window-all-closed', event => event.preventDefault());
 
@@ -201,29 +240,36 @@ ipcMain.handle('notes:create', () => {
   notes.unshift(note); saveNotes(notes); broadcast('notes:changed', notes); openNote(note.id); return note;
 });
 ipcMain.handle('notes:get', (_, id) => loadNotes().find(note => note.id === id));
-ipcMain.handle('notes:update', (_, note) => {
+ipcMain.handle('notes:update', async (_, note) => {
   const notes = loadNotes(); const index = notes.findIndex(item => item.id === note.id); if (index < 0) return;
   notes[index] = { ...notes[index], title: note.title, content: note.content, color: note.color || notes[index].color, alwaysOnTop: !!note.alwaysOnTop, updatedAt: Date.now() };
-  saveNotes(notes);
+  await queueWrite(notes);
   const noteWindow = noteWindows.get(note.id);
   if (noteWindow && !noteWindow.isDestroyed()) noteWindow.setBackgroundColor(notes[index].color);
   broadcast('notes:changed', notes);
 });
-ipcMain.handle('notes:reorder', (_, ids) => {
+ipcMain.handle('notes:reorder', async (_, ids) => {
   const notes = loadNotes(); const byId = new Map(notes.map(note => [note.id, note]));
   const ordered = ids.map(id => byId.get(id)).filter(Boolean); const remaining = notes.filter(note => !ids.includes(note.id));
-  saveNotes([...ordered, ...remaining]); broadcast('notes:changed', [...ordered, ...remaining]); return true;
+  const result = [...ordered, ...remaining];
+  await queueWrite(result);
+  broadcast('notes:changed', result);
+  return true;
 });
-ipcMain.handle('notes:delete', (_, id) => {
-  const notes = loadNotes().filter(note => note.id !== id); saveNotes(notes);
-  if (noteWindows.has(id)) noteWindows.get(id).close(); broadcast('notes:changed', notes);
+ipcMain.handle('notes:delete', async (_, id) => {
+  const notes = loadNotes().filter(note => note.id !== id);
+  await queueWrite(notes);
+  if (noteWindows.has(id)) noteWindows.get(id).close();
+  broadcast('notes:changed', notes);
 });
 ipcMain.handle('notes:open', (_, id) => openNote(id));
-ipcMain.handle('notes:toggle-always-on-top', (_, id) => {
+ipcMain.handle('notes:toggle-always-on-top', async (_, id) => {
   const notes = loadNotes(); const index = notes.findIndex(note => note.id === id); if (index < 0) return null;
-  notes[index] = { ...notes[index], alwaysOnTop: !notes[index].alwaysOnTop }; saveNotes(notes);
+  notes[index] = { ...notes[index], alwaysOnTop: !notes[index].alwaysOnTop };
+  await queueWrite(notes);
   const noteWindow = noteWindows.get(id); if (noteWindow && !noteWindow.isDestroyed()) noteWindow.setAlwaysOnTop(!!notes[index].alwaysOnTop, 'floating');
-  broadcast('notes:changed', notes); return notes[index];
+  broadcast('notes:changed', notes);
+  return notes[index];
 });
 ipcMain.handle('dock:hide', () => hideDock());
 ipcMain.handle('dock:cursor-left', () => scheduleHide());
