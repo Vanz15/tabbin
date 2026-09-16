@@ -1,6 +1,6 @@
 {
   "name": "tabbin",
-  "version": "1.0.0-beta.4",
+  "version": "1.0.0",
   "description": "A lightweight, hover-activated workspace for organizing quick notes without interrupting your workflow.",
   "main": "main.js",
   "author": "Vanz15 <vanz15@users.noreply.github.com>",
@@ -26,7 +26,7 @@
   "build": {
     "appId": "com.vanz15.tabbin",
     "productName": "Tabbin",
-    "copyright": "Copyright © 2026 Vanz15",
+    "copyright": "Copyright \u00a9 2026 Vanz15",
     "asar": true,
     "files": [
       "main.js",
@@ -45,8 +45,7 @@
       {
         "provider": "github",
         "owner": "Vanz15",
-        "repo": "tabbin",
-        "releaseType": "latest"
+        "repo": "tabbin"
       }
     ],
     "win": {
@@ -76,7 +75,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Tabbin",
-      "runAfterFinish": false,
+      "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "include": "installer.nsh"
     },

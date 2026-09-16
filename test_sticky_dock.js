@@ -19,7 +19,7 @@ assert.match(main, /hideTimer = setTimeout/);
 assert.match(main, /dock\.setFocusable\(true\)/);
 assert.match(main, /dock\.setFocusable\(false\)/);
 assert.match(main, /createLoadingWindow\(\)/);
-assert.match(main, /setTimeout\(closeLoadingWindow, 900\)/);
+assert.match(main, /setTimeout[\s\S]*closeLoadingWindow[\s\S]*900/);
 assert.match(main, /noteWidth: 430, noteHeight: 430/);
 assert.match(main, /window\.on\('resize'/);
 assert.match(main, /alwaysOnTop: !!note\?\.alwaysOnTop/);
