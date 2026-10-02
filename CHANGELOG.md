@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dock status row showing update available, download progress, ready to restart, and failure with retry.
 - Re-check every 6 hours and on system resume. Previously only once at launch, which could leave a long-lived install stale for months.
 - `update.log` in the user data directory, because packaged Windows builds discard electron-updater's stdout logging.
-- `npm run verify:feed`, a release-time check that the published `latest.yml` actually matches the artifacts attached to the release.
+- `npm run verify:feed`, a release-time check that the published `latest.yml` actually matches the artifacts attached to the release. It compares content (size and SHA-512) rather than upload timestamps, since re-uploading identical bytes bumps a timestamp without breaking anything.
 
 ### Changed
 - The dock version hint is read from the running app instead of being hardcoded to `v1.0.0+`.

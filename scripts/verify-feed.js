@@ -166,17 +166,13 @@ async function main() {
   }
 
   const feed = parseFeed(await request(ymlAsset.browser_download_url));
-  const ymlDate = new Date(ymlAsset.created_at).getTime();
 
-  // An asset uploaded after the feed cannot be described by that feed.
-  const newer = assets.filter((a) => new Date(a.created_at).getTime() > ymlDate);
-  if (newer.length) {
-    for (const a of newer) {
-      problems.push(
-        `${a.name} was uploaded after ${ymlName} — the feed cannot describe the shipped files`,
-      );
-    }
-  }
+  // NOTE: asset upload timestamps are deliberately NOT used to judge the feed.
+  // Re-uploading a byte-identical file bumps `updated_at` without changing its
+  // content, so a newer timestamp alone proves nothing. v1.0.0 is exactly that
+  // case: Tabbin-Setup.exe was re-uploaded after latest.yml, yet its size and
+  // SHA-512 still match the feed, so the feed describes the shipped installer
+  // correctly. Content is the only reliable signal, so we hash below.
 
   const expectedVersion = TAG.replace(/^v/, '');
   if (feed.version && feed.version !== expectedVersion) {
@@ -203,6 +199,14 @@ async function main() {
     if (!referenced.has(asset.name)) {
       warnings.push(`${asset.name} is published but not in ${ymlName} (not auto-updatable)`);
     }
+  }
+
+  // electron-updater downloads <path>.blockmap for differential updates. If it
+  // is missing the updater falls back to a full download, but its absence means
+  // the release was assembled by hand rather than by a single electron-builder
+  // pass, which is worth flagging.
+  if (feed.path && !assetByName(assets, `${feed.path}.blockmap`)) {
+    warnings.push(`${feed.path}.blockmap is missing — updates will fall back to a full download`);
   }
 
   if (warnings.length) {

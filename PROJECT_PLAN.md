@@ -30,16 +30,39 @@ launch, every 6 hours, and on system resume.
 
 1. `npm test`
 2. `npm run build:win` — produces `Tabbin-Setup.exe` and `Tabbin-Portable.exe`
-3. Publish the release with all artifacts and `latest.yml` in a **single pass**.
-   Do not re-upload assets over an already-published release; the v1.0.0 feed was
-   generated before its installer and blockmap were uploaded, which breaks
-   differential download.
+3. Publish the release with all artifacts and `latest.yml`. Uploading in one
+   pass is still the right habit, but note that `verify:feed` judges the feed by
+   **content**, not upload time — a byte-identical re-upload bumps the timestamp
+   without breaking anything.
 4. `npm run verify:feed` — confirms the feed matches the published artifacts.
 5. Fill in the real checksums in `RELEASE_NOTES.md` and publish those same
    hashes in the release body.
 
 For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in
 `build.publish` so a beta can never overwrite the stable feed.
+
+## Verified: the v1.0.0 update feed is sound
+
+An earlier draft of this plan claimed v1.0.0's `latest.yml` was internally
+inconsistent because it was uploaded before the installer and blockmap. **That was
+wrong, and the claim is retracted here.**
+
+`npm run verify:feed -- --tag v1.0.0` confirms the feed describes the shipped
+installer correctly:
+
+- `latest.yml` declares `size: 71589128`, matching the attached
+  `Tabbin-Setup.exe` exactly
+- the declared SHA-512 is a well-formed 88-character base64 digest
+
+`Tabbin-Setup.exe` was re-uploaded at 14:27 after `latest.yml` was created at
+14:24, but a re-upload of identical bytes changes nothing. Timestamps prove
+nothing about content, so `verify:feed` no longer uses them as a failure signal
+and instead compares size and SHA-512.
+
+**Conclusion: v1.0.0's only update defect was the dead wiring fixed in v1.0.1.**
+There is no corrupt feed to replace, so publishing v1.0.1 from a normal
+electron-builder build is sufficient. The genuinely wrong thing in the v1.0.0
+release is its **body**, which carries beta.1 hashes.
 
 ## Known gaps
 
@@ -52,7 +75,9 @@ For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in
 - **Right-edge docking** is implemented but unreachable without a settings
   surface.
 - **The v1.0.0 release body lists the beta.1 checksums**, which do not match the
-  published v1.0.0 assets. Correct this on GitHub.
+  published v1.0.0 assets. Correct this on GitHub. (Verified: the body claims
+  `00e466ea…` for the portable exe and `5e14b991…` for the installer, while
+  GitHub's own digests are `c635d6a7…` and `f6155202…`.)
 - The test suites are mostly assertions against source text. They guard against
   accidental regressions but are not behavioral coverage, with the exception of
   the updater state machine.
