@@ -12,10 +12,12 @@ contextBridge.exposeInMainWorld('tabbin', {
   quit: () => ipcRenderer.invoke('app:quit'),
   config: () => ipcRenderer.invoke('config:get'),
   toggleNoteAlwaysOnTop: id => ipcRenderer.invoke('notes:toggle-always-on-top', id),
+  updateStatus: () => ipcRenderer.invoke('updates:status'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   downloadUpdate: () => ipcRenderer.invoke('updates:download'),
   installUpdate: () => ipcRenderer.invoke('updates:install'),
+  dismissUpdateNudge: () => ipcRenderer.invoke('updates:dismiss-nudge'),
   onChanged: callback => ipcRenderer.on('notes:changed', (_, notes) => callback(notes)),
   onConfigChanged: callback => ipcRenderer.on('config:changed', (_, config) => callback(config)),
-  onUpdate: (channel, callback) => ipcRenderer.on(channel, (_, payload) => callback(payload))
+  onUpdateState: callback => ipcRenderer.on('update:state', (_, state) => callback(state))
 });

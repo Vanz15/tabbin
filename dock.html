@@ -90,7 +90,7 @@
         width: 100%;
         overflow-y: auto;
         overflow-x: visible;
-        padding: 4px 0 60px;
+        padding: 4px 0 92px;
         scrollbar-width: none;
         background: transparent;
       }
@@ -176,6 +176,68 @@
         left: auto;
         right: 14px;
       }
+      .update {
+        position: absolute;
+        bottom: 34px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 10px;
+        background: #1e2130e6;
+        color: #f5f5f7;
+        font-size: 11.5px;
+        box-shadow: 0 4px 14px #00000047;
+        cursor: pointer;
+        user-select: none;
+        z-index: 30;
+      }
+      .update[hidden] {
+        display: none;
+      }
+      .update.ready {
+        background: #1d3a2ee6;
+      }
+      .update.error {
+        background: #3a1d22e6;
+      }
+      .update .label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .update .bar {
+        flex: 0 0 46px;
+        height: 4px;
+        border-radius: 2px;
+        background: #ffffff24;
+        overflow: hidden;
+      }
+      .update .bar > i {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: 2px;
+        background: #8fbfe0;
+        transition: width 180ms ease;
+      }
+      .update .dismiss {
+        flex: 0 0 auto;
+        border: 0;
+        padding: 0 2px;
+        background: transparent;
+        color: #ffffff88;
+        font-size: 13px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .update .dismiss:hover {
+        color: #ffffff;
+      }
       .typewriter {
         overflow: hidden;
         border-right: 3px solid transparent;
@@ -202,14 +264,87 @@
         ><button id="quit" class="button quit" title="Exit Tabbin">×</button>
       </div>
       <div id="stack" class="stack"></div>
-      <div class="hint">move to edge to reveal · drag to reorder · v1.0.0+</div>
+      <div id="update" class="update" hidden></div>
+      <div class="hint">move to edge to reveal · drag to reorder · <span id="appVersion">v1.0.0</span></div>
     </main>
     <script>
       let notes = [],
         dragId = null;
       const root = document.querySelector(".dock"),
         stack = document.querySelector("#stack"),
-        search = document.querySelector("#search");
+        search = document.querySelector("#search"),
+        updateEl = document.querySelector("#update"),
+        appVersion = document.querySelector("#appVersion");
+      // `action` and `visible` are resolved in the main process so this file
+      // never re-derives update policy from status strings.
+      function paint(label, opts) {
+        opts = opts || {};
+        updateEl.hidden = false;
+        updateEl.innerHTML = "";
+        const text = document.createElement("span");
+        text.className = "label";
+        text.textContent = label;
+        updateEl.appendChild(text);
+        if (opts.bar !== undefined) {
+          const bar = document.createElement("span");
+          bar.className = "bar";
+          const fill = document.createElement("i");
+          fill.style.width = Math.max(0, Math.min(100, opts.bar)) + "%";
+          bar.appendChild(fill);
+          updateEl.appendChild(bar);
+        }
+        if (opts.dismiss) {
+          const x = document.createElement("button");
+          x.className = "dismiss";
+          x.title = "Dismiss";
+          x.textContent = "×";
+          x.onclick = (e) => {
+            e.stopPropagation();
+            window.tabbin.dismissUpdateNudge();
+          };
+          updateEl.appendChild(x);
+        }
+        updateEl.onclick = opts.onClick || null;
+      }
+      function renderUpdate(s) {
+        if (!s || !s.visible) {
+          updateEl.hidden = true;
+          updateEl.innerHTML = "";
+          updateEl.className = "update";
+          updateEl.onclick = null;
+          return;
+        }
+        updateEl.className =
+          "update" +
+          (s.status === "ready" ? " ready" : s.status === "error" ? " error" : "");
+        if (s.status === "unsupported") {
+          paint("Portable build can't update itself — install Tabbin-Setup.exe", {
+            dismiss: true,
+          });
+          return;
+        }
+        if (s.status === "downloading") {
+          paint("Downloading " + Math.round(s.percent) + "%", { bar: s.percent });
+          return;
+        }
+        if (s.status === "ready") {
+          paint("Restart to install v" + s.availableVersion, {
+            onClick: () => window.tabbin.installUpdate(),
+          });
+          return;
+        }
+        if (s.status === "error") {
+          paint("Update failed — click to retry", {
+            onClick: () => window.tabbin.checkForUpdates(),
+          });
+          return;
+        }
+        if (s.status === "available") {
+          paint("v" + s.availableVersion + " available", {
+            onClick: () => window.tabbin.downloadUpdate(),
+          });
+        }
+      }
       function getContrastTextColor(bgColor) {
           let r, g, b;
           if (bgColor.indexOf('#') === 0) {
@@ -302,6 +437,14 @@
       window.tabbin.list().then((x) => {
         notes = x;
         render();
+      });
+      window.tabbin.onUpdateState(renderUpdate);
+      // Pull as well as subscribe: an update can be discovered before this
+      // renderer finishes loading, and a push-only listener would miss it.
+      window.tabbin.updateStatus().then((s) => {
+        if (s && s.currentVersion)
+          appVersion.textContent = "v" + s.currentVersion;
+        renderUpdate(s);
       });
     </script>
   </body>

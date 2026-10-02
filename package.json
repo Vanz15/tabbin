@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test": "node test_sticky_dock.js && node test_v2_features.js",
+    "test": "node test_sticky_dock.js && node test_v2_features.js && node test_updater.js",
+    "verify:feed": "node scripts/verify-feed.js",
     "build:win": "electron-builder --win portable nsis --x64",
     "build:mac": "electron-builder --mac dmg zip",
     "build:all": "electron-builder --win portable nsis --mac dmg zip",
@@ -31,6 +32,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
+      "updater-state.js",
       "loading.html",
       "dock.html",
       "note.html",
@@ -45,7 +48,8 @@
       {
         "provider": "github",
         "owner": "Vanz15",
-        "repo": "tabbin"
+        "repo": "tabbin",
+        "channel": "latest"
       }
     ],
     "win": {

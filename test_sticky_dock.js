@@ -1,6 +1,7 @@
 const fs = require('fs');
 const assert = require('assert');
 const main = fs.readFileSync('main.js', 'utf8');
+const updater = fs.readFileSync('updater.js', 'utf8');
 const preload = fs.readFileSync('preload.js', 'utf8');
 const dock = fs.readFileSync('dock.html', 'utf8');
 const note = fs.readFileSync('note.html', 'utf8');
@@ -28,7 +29,7 @@ assert.match(main, /dock\.setAlwaysOnTop\(true, 'screen-saver'\)/);
 assert.match(main, /setFullScreenable\(false\)/);
 assert.match(main, /alwaysOnTop: true/);
 assert.match(main, /show: false/);
-assert.match(main, /require\('electron-updater'\)/);
+assert.match(updater, /require\('electron-updater'\)/);
 assert.match(main, /ipcMain\.handle\('dock:hide',/);
 assert.match(main, /app\.setAppUserModelId\('com\.vanz15\.tabbin'\)/);
 assert.match(main, /title: 'Tabbin Note'/);

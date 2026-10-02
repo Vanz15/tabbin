@@ -14,8 +14,8 @@
 
 Tabbin is a lightweight, hover-activated workspace for organizing quick notes without interrupting your workflow. The dock stays on the edge of your primary display, auto-hiding until you hover to reveal it. Notes open in native-resizable windows with rich-text editing, drag-to-reorder tabs, and per-note pinning.
 
-> [!IMPORTANT]
-> This is a private beta (v1.0.0-beta.1) published by Vanz15 for private testing. The Settings window was removed for reliability — dock behavior uses safe defaults and persisted configuration internally.
+> [!NOTE]
+> **v1.0.0** is a stable release. **v1.0.1** fixes auto-update, which shipped but was never actually surfaced to users. The Settings window remains disabled — dock behavior uses safe defaults and persisted configuration internally.
 
 ## Features
 
@@ -29,7 +29,7 @@ Tabbin is a lightweight, hover-activated workspace for organizing quick notes wi
 - **Per-note pinning** — toggle individual notes to stay always-on-top via `notes:toggle-always-on-top` IPC
 - **Invisible scrollbars** — scrollbar width set to 0 for clean UI
 - **Single-instance** — only one Tabbin instance runs at a time; relaunching focuses the existing instance
-- **Auto-updates** — built-in update checker with GitHub releases (opt-in download)
+- **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs the next time you quit. Portable builds detect themselves and explain that they cannot self-update
 - **Portable & installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
 
 ## Getting started
@@ -103,6 +103,19 @@ npm test
 This runs both test suites:
 - `test_sticky_dock.js` — verifies dock behavior (always-on-top, fullscreenable, auto-hide), IPC bridge, and beta packaging configuration
 - `test_v2_features.js` — verifies rich-text editor commands, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration
+- `test_updater.js` — exercises the update state machine (transitions, rejected events, portable guard) and asserts the updater wiring and packaging policy
+
+The tests run on plain Node with no dependencies installed. Note that most of them assert on the *text* of the source files, which catches accidental regressions but is not behavioral coverage; `test_updater.js` is the exception, because the update state machine is a pure module that can be tested directly.
+
+### Verifying a release feed
+
+```bash
+npm run verify:feed
+```
+
+Release-time only (needs network). It checks that the published `latest.yml` describes exactly the artifacts attached to the release, comparing sizes and SHA-512 digests, and that no artifact was uploaded after the feed that is meant to describe it. Run it before announcing a release.
+
+For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in `build.publish` so a beta can never overwrite the stable feed.
 
 ## Build
 
@@ -131,7 +144,9 @@ Tabbin is built with **Electron 32.3.3** and uses a minimal process architecture
 
 | File | Role |
 |------|------|
-| `main.js` | Electron main process — window management, IPC handlers, note storage, edge-hover detection, auto-update setup |
+| `main.js` | Electron main process — window management, IPC handlers, note storage, edge-hover detection |
+| `updater.js` | Auto-update wiring — electron-updater events, build guards, re-check cadence, update log |
+| `updater-state.js` | Pure update state machine (no Electron imports), so transitions are unit testable |
 | `preload.js` | Context bridge exposing `window.tabbin` API to renderer processes (context isolation enabled, no nodeIntegration) |
 | `dock.html` | Dock renderer — transparent overlay with note tabs, search, hide button, and quit button |
 | `note.html` | Note editor renderer — contenteditable with rich-text toolbar and per-note pin toggle |
@@ -154,17 +169,21 @@ Tabbin is built with **Electron 32.3.3** and uses a minimal process architecture
 | `tabbin.quit()` | Quit the application |
 | `tabbin.config()` | Get dock configuration |
 | `tabbin.toggleNoteAlwaysOnTop(id)` | Toggle per-note pinning |
+| `tabbin.updateStatus()` | Current update state snapshot (pull on load) |
 | `tabbin.checkForUpdates()` | Check for app updates |
 | `tabbin.downloadUpdate()` | Download available update |
 | `tabbin.installUpdate()` | Install update and restart |
+| `tabbin.dismissUpdateNudge()` | Permanently dismiss the portable-build notice |
 | `tabbin.onChanged(cb)` | Listen for note changes |
 | `tabbin.onConfigChanged(cb)` | Listen for config changes |
-| `tabbin.onUpdate(chan, cb)` | Listen for update events |
+| `tabbin.onUpdateState(cb)` | Listen for update state changes |
 
 ### Data storage
 
 - `config.json` — dock edge, edge hover toggle, note window dimensions
 - `notes.json` — note data (id, title, content, color, alwaysOnTop, updatedAt)
+- `update-state.json` — last update check timestamp and whether the portable-build notice was dismissed
+- `update.log` — updater diagnostics, since packaged Windows builds discard stdout
 
 Both stored in the Electron user data directory (`app.getPath('userData')`).
 

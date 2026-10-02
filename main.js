@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
-const { autoUpdater } = require('electron-updater');
+const updater = require('./updater');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -174,14 +174,10 @@ function closeLoadingWindow() {
   loadingWindow = null;
 }
 function setupAutoUpdater() {
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', info => broadcast('update:available', info));
-  autoUpdater.on('update-not-available', () => broadcast('update:none'));
-  autoUpdater.on('download-progress', progress => broadcast('update:progress', progress));
-  autoUpdater.on('update-downloaded', info => broadcast('update:downloaded', info));
-  autoUpdater.on('error', error => broadcast('update:error', { message: error.message }));
-  if (app.isPackaged) autoUpdater.checkForUpdates().catch(error => broadcast('update:error', { message: error.message }));
+  // The updater owns its own state machine and pushes a full snapshot on every
+  // change, so renderers can both subscribe and pull (see dock.html) — a plain
+  // event firehose loses events that land before the dock finishes loading.
+  updater.init(state => broadcast('update:state', state));
 }
 function openNote(id) {
   clearHideTimer();
@@ -230,9 +226,11 @@ app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('app:quit', () => app.quit());
 ipcMain.handle('config:get', () => loadConfig());
-ipcMain.handle('updates:check', () => autoUpdater.checkForUpdates().catch(error => ({ error: error.message })));
-ipcMain.handle('updates:download', () => autoUpdater.downloadUpdate().catch(error => ({ error: error.message })));
-ipcMain.handle('updates:install', () => autoUpdater.quitAndInstall());
+ipcMain.handle('updates:status', () => updater.snapshot());
+ipcMain.handle('updates:check', () => updater.check());
+ipcMain.handle('updates:download', () => updater.download());
+ipcMain.handle('updates:install', () => updater.install());
+ipcMain.handle('updates:dismiss-nudge', () => updater.dismissNudge());
 ipcMain.handle('notes:list', () => loadNotes().sort((a, b) => b.updatedAt - a.updatedAt));
 ipcMain.handle('notes:create', () => {
   const notes = loadNotes();
