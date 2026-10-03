@@ -6,190 +6,192 @@
 
 **A lightweight hover-activated dock for your notes — always on top, never in the way.**
 
-[Features](#features) • [Getting started](#getting-started) • [Development](#development) • [Build](#build)
+[Features](#features) • [Getting started](#getting-started) • [Development](#development) • [Architecture](#architecture)
 
 </div>
 
 ## Overview
 
-Tabbin is a lightweight, hover-activated workspace for organizing quick notes without interrupting your workflow. The dock stays on the edge of your primary display, auto-hiding until you hover to reveal it. Notes open in native-resizable windows with rich-text editing, drag-to-reorder tabs, and per-note pinning.
+Tabbin is a hover-activated dock for quick notes that stays out of your way. It
+parks on the edge of your primary display and hides itself until you reach for
+it. Notes open in native-resizable windows with rich-text editing, and tabs
+reorder by dragging.
 
 > [!NOTE]
-> **v1.0.0** is a stable release. **v1.0.1** fixes auto-update, which shipped but was never actually surfaced to users. The Settings window remains disabled — dock behavior uses safe defaults and persisted configuration internally.
+> **v1.0.1** is the current stable release. It fixes auto-update, which had
+> shipped but was never surfaced to users — the updater found releases and then
+> discarded them. If you installed v1.0.0 or earlier, download
+> `Tabbin-Setup.exe` from the releases page and install over your existing copy;
+> your notes and settings are preserved.
 
 ## Features
 
-- **Transparent auto-hide dock** — frame-less, transparent overlay that hides on the screen edge and reveals on hover (12px hot zone)
-- **Always-on-top** — dock remains above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`
-- **Fullscreen suppression prevention** — dock remains accessible in fullscreen via `setFullScreenable(false)`
-- **Colored note tabs** — each note gets a distinct color from a 6-color palette (`#f5c542`, `#66d9c7`, `#ff8b8b`, `#a98bff`, `#76b7ff`, `#f29b72`)
-- **Rich-text editing** — contenteditable editor with bold, italic, underline, strikethrough, bullet/numbered lists, indent/outdent, alignment, and format block controls
-- **Drag-to-reorder** — rearrange note tabs by dragging within the dock
-- **Native-resizable windows** — note windows remember their dimensions across sessions
-- **Per-note pinning** — toggle individual notes to stay always-on-top via `notes:toggle-always-on-top` IPC
-- **Invisible scrollbars** — scrollbar width set to 0 for clean UI
-- **Single-instance** — only one Tabbin instance runs at a time; relaunching focuses the existing instance
-- **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs the next time you quit. Portable builds detect themselves and explain that they cannot self-update
-- **Portable & installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
+- **Transparent auto-hide dock** — frame-less overlay with a 12px hover hot zone that hides when you move away
+- **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`
+- **Fullscreen suppression prevention** — `setFullScreenable(false)` keeps the dock reachable in fullscreen apps
+- **Colored note tabs** — six-colour palette assigned per note
+- **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks
+- **Drag to reorder** — rearrange tabs by dragging them within the dock
+- **Native-resizable windows** — note windows remember their size across sessions
+- **Per-note pinning** — keep an individual note above other windows
+- **Search** — filter notes as you type
+- **Single instance** — relaunching focuses the running dock instead of starting a second copy
+- **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
+- **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
 
 ## Getting started
 
 ### Download
 
-Pre-built binaries are available for Windows (x64):
+Pre-built binaries for Windows (x64) are on the [releases page](https://github.com/Vanz15/tabbin/releases):
 
-- **`Tabbin-Portable.exe`** — portable build, no installation required
-- **`Tabbin-Setup.exe`** — installer with Start Menu and Desktop shortcuts, configurable installation directory
+| Build | Use it when |
+|---|---|
+| **`Tabbin-Setup.exe`** | You want auto-updates. Installs with Start Menu and Desktop shortcuts. |
+| **`Tabbin-Portable.exe`** | You want no installation. Cannot self-update — it runs from a temp folder and replaces nothing. |
 
-### Running
+### Using it
 
-1. Launch the executable
-2. A loading screen appears with the Tabbin logo (~900ms), then fades to the dock
-3. The dock docks on the **left edge** of your primary display (right-edge docking is supported internally via config)
-4. **Hover a colored tab** (42px wide) to expand it to 300px and preview content
-5. **Click a tab** to open a full note window
-6. Move the mouse outside the dock for 400ms to auto-hide
-7. Use the **New note** button to create a new note, the **Hide dock** button to manually hide the dock, or the **Exit Tabbin** button to quit
+1. Launch the executable. A splash screen (~900ms) fades to the dock.
+2. The dock sits on the **left edge** of your primary display.
+3. **Hover a tab** (34px collapsed, 270px expanded) to preview its content.
+4. **Click a tab** to open the full note window.
+5. Move the pointer away and the dock hides after 400ms.
 
-Default notes created on first run:
-- **Welcome to Tabbin** — hover/click instructions (yellow tab)
-- **Ideas** — capture quick thoughts (teal tab)
-- **Today** — daily task list (pink tab)
+First run creates three notes: **Welcome to Tabbin** (instructions), **Ideas**,
+and **Today** (a task list).
 
-## Feedback & Support
-
-I'd love to hear your thoughts and experiences with Tabbin! Here are several ways to connect:
-
-- 🐞 **Bug reports & feature requests:** [Open an issue](https://github.com/Vanz15/tabbin/issues)
-- 💬 **General feedback:** [Share your thoughts](https://github.com/Vanz15/tabbin/issues/new/choose)
-- 📧 **Direct contact:** Email [vanz15@users.noreply.github.com](mailto:vanz15@users.noreply.github.com)
-- 💼 **Connect with me:** [LinkedIn @ahpmartinez](https://www.linkedin.com/in/ahpmartinez/)
-- 📸 **Behind the scenes & updates:** [@ibaaannn__ on Instagram](https://www.instagram.com/ibaaannn__/)
-
-### When reporting issues, please include:
-- Windows version (run `winver` to check)
-- What you were doing when the issue occurred
-- Whether the dock appeared in fullscreen apps
-- Screenshot if visual bug
-
-Thank you for helping improve Tabbin! 🎯
+The dock's bottom status row reports update state — available, download
+progress, restart to install, or a retry option after a failure. It stays
+hidden when there is nothing to report.
 
 ## Development
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v18 or later
-- [npm](https://www.npmjs.com/)
-- [Electron](https://www.electronjs.org/) v32.3.3 (installed automatically via devDependencies)
-
-### Setup
+Node.js 18+ and npm. Electron 32.3.3 installs itself via devDependencies.
 
 ```bash
-# Install dependencies
 npm install
-
-# Start in development mode (with hot reload)
 npm start
 ```
 
-The project includes `electron-reload` for development. Changes to source files in the `source/` directory trigger an automatic restart of the Electron process.
-
-### Testing
+### Tests
 
 ```bash
 npm test
 ```
 
-This runs both test suites:
-- `test_sticky_dock.js` — verifies dock behavior (always-on-top, fullscreenable, auto-hide), IPC bridge, and beta packaging configuration
-- `test_v2_features.js` — verifies rich-text editor commands, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration
-- `test_updater.js` — exercises the update state machine (transitions, rejected events, portable guard) and asserts the updater wiring and packaging policy
+| Suite | Covers |
+|---|---|
+| `test_sticky_dock.js` | Dock behavior, reduced IPC bridge, packaging config |
+| `test_v2_features.js` | Rich-text commands, drag reorder, resizing, pinning, installer config |
+| `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
+| `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
 
-The tests run on plain Node with no dependencies installed. Note that most of them assert on the *text* of the source files, which catches accidental regressions but is not behavioral coverage; `test_updater.js` is the exception, because the update state machine is a pure module that can be tested directly.
+These run on plain Node with no dependencies. Most assert on the *text* of
+source files, which catches regressions but is not behavioral coverage. The
+updater suites are the exception: `updater-state.js` is a pure module and the
+checksum guard is imported directly, so both are genuinely exercised.
 
-### Verifying a release feed
+### Verifying a release
 
 ```bash
 npm run verify:feed
 ```
 
-Release-time only (needs network). It checks that the published `latest.yml` describes exactly the artifacts attached to the release, comparing sizes and SHA-512 digests, and that no artifact was uploaded after the feed that is meant to describe it. Run it before announcing a release.
+Release-time only, and needs network access. It confirms that:
 
-For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in `build.publish` so a beta can never overwrite the stable feed.
+- the published `latest.yml` declares the version the tag claims
+- every file it references is attached to the release
+- declared sizes and SHA-512 digests match the stored artifacts
+- any SHA-256 advertised in the **release body** matches GitHub's per-asset digest
 
-## Build
+> [!IMPORTANT]
+> Take checksums for the release body from GitHub's asset digests *after*
+> publishing, never from a local `dist/`. `electron-builder --publish always`
+> rebuilds before uploading, so the bytes that reach GitHub differ from the
+> ones on disk. v1.0.0, v1.0.1 and v1.0.2 all shipped stale checksums before
+> this was caught.
 
-```bash
-# Build for all platforms (Windows + macOS)
-npm run build:all
-
-# Windows only (portable + NSIS installer)
-npm run build:win
-
-# macOS only (DMG + ZIP)
-npm run build:mac
-
-# Package as directory (for debugging, no installer)
-npm run build:dir
-```
-
-Build artifacts are output to the `dist/` directory.
-
-> [!NOTE]
-> The installer does not include code signing. The uninstaller prompts whether to preserve or remove notes and settings stored in the user's application-data directory.
+Upload the feed **last**, and do not replace assets on a published release.
 
 ## Architecture
 
-Tabbin is built with **Electron 32.3.3** and uses a minimal process architecture:
-
 | File | Role |
-|------|------|
-| `main.js` | Electron main process — window management, IPC handlers, note storage, edge-hover detection |
-| `updater.js` | Auto-update wiring — electron-updater events, build guards, re-check cadence, update log |
+|---|---|
+| `main.js` | Main process — windows, IPC handlers, note storage, edge-hover detection, crash handlers |
+| `updater.js` | Update wiring — electron-updater events, build guards, re-check cadence, file logging |
 | `updater-state.js` | Pure update state machine (no Electron imports), so transitions are unit testable |
-| `preload.js` | Context bridge exposing `window.tabbin` API to renderer processes (context isolation enabled, no nodeIntegration) |
-| `dock.html` | Dock renderer — transparent overlay with note tabs, search, hide button, and quit button |
-| `note.html` | Note editor renderer — contenteditable with rich-text toolbar and per-note pin toggle |
-| `loading.html` | Splash screen with animated logo and "Starting Tabbin" indicator |
-| `icon.ico` / `icon.png` | Application icons for Windows and macOS |
+| `preload.js` | Context bridge exposing `window.tabbin`; context isolation on, `nodeIntegration` off |
+| `dock.html` | Dock renderer — transparent overlay, tabs, search, update row |
+| `note.html` | Note editor — contenteditable with rich-text toolbar and pin toggle |
+| `loading.html` | Splash screen |
+| `scripts/verify-feed.js` | Release-time feed and checksum verification |
+| `icon.ico` / `icon.png` | Application icons |
 
-### IPC API (exposed via preload.js)
+### Update flow
+
+`updater.js` owns a state machine and pushes a full snapshot to the dock on
+every transition, which the dock both subscribes to and pulls on load. A
+snapshot rather than an event stream, so an update found before the dock
+finishes loading is not lost.
+
+States resolve to one dock row: `available` → `downloading` → `ready`, plus
+`error` (retryable) and `unsupported`. `install()` refuses to run for a portable
+build or an unpackaged dev run, so a test can never replace a real install.
+
+### IPC API
 
 | Method | Description |
-|--------|-------------|
-| `tabbin.list()` | List all notes sorted by last updated |
-| `tabbin.get(id)` | Get a specific note |
-| `tabbin.create()` | Create a new note (opens window automatically) |
-| `tabbin.update(note)` | Update note title/content/color |
-| `tabbin.reorder(ids)` | Reorder notes by drag-and-drop |
-| `tabbin.remove(id)` | Delete a note |
-| `tabbin.open(id)` | Open a note window |
-| `tabbin.hide()` | Hide the dock |
-| `tabbin.cursorLeft()` | Trigger dock hide timer |
-| `tabbin.quit()` | Quit the application |
-| `tabbin.config()` | Get dock configuration |
-| `tabbin.toggleNoteAlwaysOnTop(id)` | Toggle per-note pinning |
-| `tabbin.updateStatus()` | Current update state snapshot (pull on load) |
-| `tabbin.checkForUpdates()` | Check for app updates |
-| `tabbin.downloadUpdate()` | Download available update |
-| `tabbin.installUpdate()` | Install update and restart |
-| `tabbin.dismissUpdateNudge()` | Permanently dismiss the portable-build notice |
-| `tabbin.onChanged(cb)` | Listen for note changes |
-| `tabbin.onConfigChanged(cb)` | Listen for config changes |
-| `tabbin.onUpdateState(cb)` | Listen for update state changes |
+|---|---|
+| `list()` / `get(id)` | Read notes, newest first |
+| `create()` | Create a note and open its window |
+| `update(note)` | Save title, content, color, pinning |
+| `reorder(ids)` | Persist drag-and-drop order |
+| `remove(id)` | Delete a note |
+| `open(id)` | Open a note window |
+| `hide()` / `cursorLeft()` | Hide the dock, or arm its hide timer |
+| `quit()` | Quit the app |
+| `config()` | Dock configuration |
+| `toggleNoteAlwaysOnTop(id)` | Pin a note |
+| `updateStatus()` | Current update snapshot |
+| `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` | Drive an update |
+| `dismissUpdateNudge()` | Dismiss the portable-build notice |
+| `onChanged(cb)` / `onConfigChanged(cb)` / `onUpdateState(cb)` | Subscribe to changes |
 
 ### Data storage
 
-- `config.json` — dock edge, edge hover toggle, note window dimensions
-- `notes.json` — note data (id, title, content, color, alwaysOnTop, updatedAt)
-- `update-state.json` — last update check timestamp and whether the portable-build notice was dismissed
-- `update.log` — updater diagnostics, since packaged Windows builds discard stdout
+Stored in the Electron user data directory (`app.getPath('userData')`):
 
-Both stored in the Electron user data directory (`app.getPath('userData')`).
+| File | Contents |
+|---|---|
+| `notes.json` | Notes — id, title, content, color, pinning, timestamp |
+| `config.json` | Dock `edge` (left/right), `edgeHover`, note window `noteWidth`/`noteHeight` |
+| `update-state.json` | Last check timestamp, portable-notice dismissal |
+| `update.log` | Updater diagnostics, since packaged Windows builds discard stdout |
+| `crash.log` | Uncaught exceptions and unhandled rejections |
+
+Notes are written atomically with a backup rollback and serialized through a
+write queue, so concurrent saves cannot lose data.
+
+### Build
+
+```bash
+npm run build:win    # Windows: portable + NSIS installer
+npm run build:mac    # macOS: DMG + ZIP
+npm run build:all    # both
+npm run build:dir    # unpacked directory, for debugging
+```
+
+Output lands in `dist/`.
+
+> [!NOTE]
+> Builds are not code signed, so Windows SmartScreen may warn on install or
+> update. Signing is planned for a future release.
 
 ## Acknowledgements
 
-- [Electron](https://www.electronjs.org/) — cross-platform desktop app framework
+- [Electron](https://www.electronjs.org/) — cross-platform desktop framework
 - [electron-builder](https://www.electron.build/) — packaging and installation
-- [electron-updater](https://www.electron.build/variables-configuration#configurationpublishconfig) — auto-updating
-- [electron-reload](https://github.com/SimulatedGREG/electron-reload) — live reload during development
+- [electron-updater](https://www.electron.build/auto-update.html) — auto-updating
