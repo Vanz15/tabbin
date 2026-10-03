@@ -102,6 +102,64 @@ function assetByName(assets, name) {
   return assets.find((a) => a.name === name) || null;
 }
 
+// The release body is what a human actually reads when deciding whether a
+// download is trustworthy, and it is assembled separately from the feed, so it
+// can drift. v1.0.0 shipped beta.1 hashes, and v1.0.1/v1.0.2 carried hashes
+// copied from a local dist/ that electron-builder replaced when it rebuilt
+// during --publish. Catch that here so a wrong checksum cannot ship again.
+//
+// Two body formats exist across tags, and older lines can be malformed (a
+// missing closing backtick), so match the asset name and the hex run
+// independently instead of demanding one rigid shape.
+const BODY_NAME_RE = /Tabbin-[A-Za-z0-9.]+exe/;
+const BODY_HASH_RE = /[0-9a-fA-F]{40,}/g;
+
+// GitHub computes a sha256 for every uploaded asset; it is the authoritative
+// hash of the bytes actually stored, so it needs no re-download to trust.
+function verifyBodyChecksums(body, assets) {
+  if (!body) return [];
+  const truth = new Map();
+  for (const asset of assets) {
+    const digest = String(asset.digest || '').replace(/^sha256:/, '').toLowerCase();
+    if (asset.name.endsWith('.exe') && /^[0-9a-f]{64}$/.test(digest)) {
+      truth.set(asset.name, digest);
+    }
+  }
+  if (!truth.size) return [];
+
+  const claimed = new Map();
+  for (const line of String(body).split('\n')) {
+    const name = (line.match(BODY_NAME_RE) || [])[0];
+    if (!name || !truth.has(name)) continue;
+    for (const run of line.match(BODY_HASH_RE) || []) claimed.set(name, run.toLowerCase());
+  }
+  if (!claimed.size) return [];
+
+  const found = [];
+  for (const [name, hash] of claimed) {
+    const actual = truth.get(name);
+    if (hash.length !== 64) {
+      found.push(
+        `Release body advertises a malformed sha256 for ${name}: ${hash.length} hex characters, expected 64`,
+      );
+    } else if (actual !== hash) {
+      found.push(
+        `Release body advertises a wrong sha256 for ${name}: says ${hash.slice(0, 16)}…, ` +
+          `published file is ${actual.slice(0, 16)}…`,
+      );
+    }
+  }
+
+  const names = [...claimed.keys()].sort();
+  console.log(`\nRelease body advertises ${claimed.size} checksum(s):`);
+  for (const name of names) {
+    const ok = truth.get(name) === claimed.get(name);
+    console.log(`  · ${name} — ${ok ? 'matches the published file' : 'MISMATCH'}`);
+  }
+  problems.push(...found);
+  return found;
+}
+
 function human(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
@@ -209,6 +267,10 @@ async function main() {
     warnings.push(`${feed.path}.blockmap is missing — updates will fall back to a full download`);
   }
 
+  // The feed can be perfect while the release body advertises checksums from a
+  // build that never shipped, so the human-facing page needs its own check.
+  verifyBodyChecksums(release.body, assets);
+
   if (warnings.length) {
     console.log('\nNotes:');
     for (const w of warnings) console.log(`  ! ${w}`);
@@ -226,7 +288,14 @@ async function main() {
   console.log(`\nPASS — ${ymlName} matches the artifacts published on ${TAG}.`);
 }
 
-main().catch((error) => {
-  console.error(`\nERROR: ${error.message}`);
-  process.exit(2);
-});
+// Exported so the offline unit test can exercise the checksum guard directly
+// instead of re-implementing it. main() only runs when invoked as a script, so
+// requiring this file has no side effects.
+module.exports = { verifyBodyChecksums, parseFeed };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`\nERROR: ${error.message}`);
+    process.exit(2);
+  });
+}

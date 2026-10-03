@@ -198,6 +198,38 @@ const at = (status) => createInitialState({ status });
   assert.ok(pkg.build.files.includes('updater-state.js'), 'updater-state.js must ship in the package');
   assert.match(pkg.scripts['verify:feed'], /verify-feed/);
   assert.match(fs.readFileSync('scripts/verify-feed.js', 'utf8'), /sha512/);
+
+  // The feed can verify clean while the release body advertises checksums from a
+  // build that never shipped, so the body needs its own guard. v1.0.1 shipped
+  // hashes copied from dist/ before `--publish always` rebuilt the binaries.
+  const verifySrc = fs.readFileSync('scripts/verify-feed.js', 'utf8');
+  assert.match(verifySrc, /verifyBodyChecksums/, 'verify-feed must check release-body checksums');
+  assert.match(
+    verifySrc,
+    /verifyBodyChecksums\(release\.body,\s*assets\)/,
+    'the body check must actually run against the published release',
+  );
+  // Both historical body formats have to be understood, or a stale table-style
+  // checksum block (as on v1.0.0) slips through unverified.
+  assert.match(verifySrc, /BODY_NAME_RE/, 'body asset names must be parsed');
+  assert.match(verifySrc, /BODY_HASH_RE/, 'body checksum runs must be parsed');
+  assert.match(
+    verifySrc,
+    /asset\.digest/,
+    'body checksums must be compared against GitHub\'s stored asset digest',
+  );
+  // The guard must report what it found by return value so it can be unit
+  // tested offline, rather than only mutating the module-scoped problems list.
+  assert.match(
+    verifySrc,
+    /return found;/,
+    'verifyBodyChecksums must return its findings so they can be tested',
+  );
+  assert.match(
+    verifySrc,
+    /require\.main === module/,
+    'verify-feed must only run main() when invoked directly, so tests can require it',
+  );
 }
 
 console.log(
