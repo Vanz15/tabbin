@@ -37,13 +37,49 @@ if (!hasSingleInstanceLock) {
 const appIcon = () => path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const configFile = () => userDataFile('config.json');
 const dataFile = () => userDataFile('notes.json');
-const palette = ['#f5c542', '#66d9c7', '#ff8b8b', '#a98bff', '#76b7ff', '#f29b72'];
+// Frosted-glass palette from the design mockup. These supersede the original
+// six flat tab colours, which were picked for opaque tabs and read as harsh
+// against a dark translucent surface. Passed to note.html via the load query so
+// the dots and the window gradient always agree with this list.
+const palette = ['#F2A38F', '#9CCFA5', '#8EC5E8', '#F0D58A', '#B9A7E8'];
 const seed = [
-  { id: 'welcome', title: 'Welcome to Tabbin', content: 'Hover a colored tab to preview it. Click to open a full note window.', color: '#f5c542', updatedAt: Date.now() },
-  { id: 'ideas', title: 'Ideas', content: 'Capture ideas quickly, then keep working without losing your train of thought.', color: '#66d9c7', updatedAt: Date.now() - 1000 },
-  { id: 'tasks', title: 'Today', content: '• Clear pending tasks\n• Hit the gym\n• Rest and recharge', color: '#ff8b8b', updatedAt: Date.now() - 2000 }
+  { id: 'welcome', title: 'Welcome to Tabbin', content: 'Hover a colored tab to preview it. Click to open a full note window.', color: '#F0D58A', updatedAt: Date.now() },
+  { id: 'ideas', title: 'Ideas', content: 'Capture ideas quickly, then keep working without losing your train of thought.', color: '#9CCFA5', updatedAt: Date.now() - 1000 },
+  { id: 'tasks', title: 'Today', content: '• Clear pending tasks\n• Hit the gym\n• Rest and recharge', color: '#F2A38F', updatedAt: Date.now() - 2000 }
 ];
 const defaultConfig = { edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430 };
+
+function hexToRgb(hex) {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+  return match ? [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)] : null;
+}
+// Nearest palette entry by RGB distance, so a legacy colour lands on the
+// closest-looking replacement rather than an arbitrary one.
+function nearestPaletteColor(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  let best = null;
+  let bestDistance = Infinity;
+  for (const candidate of palette) {
+    const c = hexToRgb(candidate);
+    const distance = (rgb[0] - c[0]) ** 2 + (rgb[1] - c[1]) ** 2 + (rgb[2] - c[2]) ** 2;
+    if (distance < bestDistance) { bestDistance = distance; best = candidate; }
+  }
+  return best;
+}
+// Re-tint notes saved with the legacy flat palette onto the glass palette.
+// Idempotent: a colour already in `palette` maps to itself, so running this on
+// every launch cannot keep rewriting the file.
+function migrateNoteColors(notes) {
+  const known = new Set(palette.map((c) => c.toLowerCase()));
+  let changed = false;
+  for (const note of notes) {
+    if (known.has(String(note.color || '').toLowerCase())) continue;
+    const next = nearestPaletteColor(note.color);
+    if (next) { note.color = next; changed = true; }
+  }
+  return changed;
+}
 
 function loadConfig() {
   try { return { ...defaultConfig, ...JSON.parse(fs.readFileSync(configFile(), 'utf8')) }; }
@@ -95,7 +131,13 @@ function layout() {
   if (!dock || dock.isDestroyed()) return;
   const display = screen.getPrimaryDisplay();
   const config = loadConfig();
-  const fullWidth = 390;
+  // Frosted-glass dock width, matching the mockup's `.dock`
+  // (min(320px, calc(100vw - 28px))). Sized for reading a full note card
+  // rather than a hover preview.
+  const fullWidth = 320;
+  // Collapsed dock is a plain sliver: the mockup's coloured edge pills were
+  // tried here and removed, because they sit in the left margin and obstruct
+  // normal scrolling. Nothing is drawn while collapsed.
   const hiddenWidth = 10;
   const height = Math.min(760, display.workAreaSize.height - 120);
   const y = display.workArea.y + 80;
@@ -157,12 +199,25 @@ function createDock() {
     width: 6, height: Math.min(760, display.workAreaSize.height - 80), x: display.workArea.x, y: display.workArea.y + 40,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, show: false, focusable: false,
     icon: appIcon(),
+    // NO backgroundMaterial here on purpose. Windows composites acrylic across
+    // the whole rectangular window, so it fills the corners underneath the CSS
+    // border-radius — the radius then reads as fake rather than as a cut-out.
+    // With a transparent window and no material, the radius genuinely shows the
+    // desktop through, which is what makes the corners read as real. The frosted
+    // look comes from the CSS tint/border/shadow in dock.html, which is also
+    // the part that was actually visible (acrylic mostly sampled flat
+    // wallpaper, so it contributed almost nothing here).
+    // macOS has no acrylic; vibrancy is the equivalent there and it respects the
+    // window's rounded shape, so it is safe to keep.
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   dock.loadFile('dock.html');
   layout();
   dock.hide();
   dock.setFullScreenable(false);  // prevent OS from suppressing during fullscreen
+  if (process.platform === 'darwin') {
+    try { dock.setVibrancy('under-window'); } catch { /* older macOS/Electron */ }
+  }
   startEdgeWatcher();
 }
 function createLoadingWindow() {
@@ -190,16 +245,36 @@ function openNote(id) {
     return;
   }
   const note = loadNotes().find(item => item.id === id);
-  const noteColor = note && note.color || '#f5c542';
+  const noteColor = note && note.color || palette[0];
   const config = loadConfig();
   const window = new BrowserWindow({
-    width: config.noteWidth || 430, height: config.noteHeight || 430, minWidth: 300, minHeight: 260, resizable: true, frame: true, thickFrame: true,
-    movable: true, maximizable: true, alwaysOnTop: !!note?.alwaysOnTop, title: 'Tabbin Note', backgroundColor: noteColor, icon: appIcon(),
+    width: config.noteWidth || 430, height: config.noteHeight || 430, minWidth: 300, minHeight: 260, resizable: true,
+    // Frameless with custom chrome drawn in note.html, matching the mockup's
+    // logo bar with pin/close controls. titleBarStyle 'hidden' keeps the native
+    // controls available on hover via customButtonsOnHover-free behaviour, while
+    // the page supplies its own close button so the glass surface reaches the
+    // window edge.
+    // thickFrame is deliberately off: on a frameless window it keeps the OS
+    // resize border hit-testing active through every drag, making resize the
+    // most expensive repaint the window does. thickFrame: false still resizes
+    // (it only drops the Win32 resize frame, not resize support).
+    frame: false, thickFrame: false, titleBarStyle: 'hidden',
+    movable: true, maximizable: true, alwaysOnTop: !!note?.alwaysOnTop, title: 'Tabbin Note',
+    // Opaque dark base. A frameless window with an alpha-0 background but no
+    // `transparent: true` makes Chromium allocate an uninitialised (white)
+    // buffer for invalidated regions; the glass then paints over it a frame
+    // later, which reads as a white box and ghosted text while typing. An
+    // opaque base keeps the surface fully defined, and note.html still paints
+    // the glass tint and note gradient on top, so the design is unchanged.
+    backgroundColor: '#18181b',
+    icon: appIcon(),
     autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   window.setResizable(true);
   noteWindows.set(id, window);
-  window.loadFile('note.html', { query: { id } });
+  // Pass the palette so the colour dots and the window gradient always agree
+  // with the colours the main process assigns to new notes.
+  window.loadFile('note.html', { query: { id, palette: palette.join(',') } });
   let resizeTimer;
   window.on('resize', () => {
     clearTimeout(resizeTimer);
@@ -214,6 +289,10 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   if (!fs.existsSync(configFile())) saveConfig(defaultConfig);
   if (!loadNotes().length) saveNotes(seed);
+  // Re-tint any notes still carrying a legacy palette colour. Runs every
+  // launch but is a no-op once notes are on the glass palette.
+  const existing = loadNotes();
+  if (migrateNoteColors(existing)) saveNotes(existing);
   createLoadingWindow();
   createDock();
   setupAutoUpdater();
@@ -242,8 +321,8 @@ ipcMain.handle('notes:update', async (_, note) => {
   const notes = loadNotes(); const index = notes.findIndex(item => item.id === note.id); if (index < 0) return;
   notes[index] = { ...notes[index], title: note.title, content: note.content, color: note.color || notes[index].color, alwaysOnTop: !!note.alwaysOnTop, updatedAt: Date.now() };
   await queueWrite(notes);
-  const noteWindow = noteWindows.get(note.id);
-  if (noteWindow && !noteWindow.isDestroyed()) noteWindow.setBackgroundColor(notes[index].color);
+  // The window is frameless and translucent, so the note colour is painted by
+  // the renderer (note.html) rather than by the native window background.
   broadcast('notes:changed', notes);
 });
 ipcMain.handle('notes:reorder', async (_, ids) => {

@@ -18,23 +18,23 @@ it. Notes open in native-resizable windows with rich-text editing, and tabs
 reorder by dragging.
 
 > [!NOTE]
-> **v1.0.1** is the current stable release. It fixes auto-update, which had
-> shipped but was never surfaced to users — the updater found releases and then
-> discarded them. If you installed v1.0.0 or earlier, download
-> `Tabbin-Setup.exe` from the releases page and install over your existing copy;
-> your notes and settings are preserved.
+> **v2.0.0** replaces the dock and note UI with a frosted-glass design, sized so
+> the redesign is obvious next to v1.x. **v1.0.1** remains available on the
+> releases page if you prefer the older tab-based dock.
 
 ## Features
 
-- **Transparent auto-hide dock** — frame-less overlay with a 12px hover hot zone that hides when you move away
-- **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`
-- **Fullscreen suppression prevention** — `setFullScreenable(false)` keeps the dock reachable in fullscreen apps
-- **Colored note tabs** — six-colour palette assigned per note
+- **Frosted-glass dock** — translucent dark panel with a rounded edge, always on top, auto-hiding until you hover the screen edge
+- **Full-width note cards** — title, preview and relative timestamp visible at rest, each tinted by the note colour with a matching spine on the leading edge
+- **Bundled Geist typeface** — no CDN fetch at runtime, so the UI renders identically offline
+- **Rethemed note window** — custom chrome with the Tabbin mark, per-note colour dots, active-formatting highlight, and a word count
+- **Always-visible search** — `Ctrl K` focuses it, `Escape` clears it
+- **Thin scrollbar** — a faint 8px bar rather than a hidden one
+- **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks
-- **Drag to reorder** — rearrange tabs by dragging them within the dock
+- **Drag to reorder** — rearrange note cards by dragging them within the dock
 - **Native-resizable windows** — note windows remember their size across sessions
 - **Per-note pinning** — keep an individual note above other windows
-- **Search** — filter notes as you type
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
 - **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
@@ -54,9 +54,8 @@ Pre-built binaries for Windows (x64) are on the [releases page](https://github.c
 
 1. Launch the executable. A splash screen (~900ms) fades to the dock.
 2. The dock sits on the **left edge** of your primary display.
-3. **Hover a tab** (34px collapsed, 270px expanded) to preview its content.
-4. **Click a tab** to open the full note window.
-5. Move the pointer away and the dock hides after 400ms.
+3. **Hover a card** to highlight it; **click** to open the full note window.
+4. Move the pointer away and the dock hides after 400ms.
 
 First run creates three notes: **Welcome to Tabbin** (instructions), **Ideas**,
 and **Today** (a task list).

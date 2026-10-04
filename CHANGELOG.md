@@ -5,6 +5,58 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-03
+
+A complete UI redesign. The version was set to 2.0.0 rather than 1.1.0 so the
+redesigned build is unmistakable next to the v1.x tab-based dock. No data format
+changed, so upgrading preserves existing notes and settings.
+
+### Changed
+
+- **Dock redesigned as a frosted-glass panel.** Full-width note cards show title,
+  preview and a relative timestamp at rest, replacing the v1.x hover-expand tabs
+  (42px collapsed, expanding to 270px on hover). Each card is tinted by its note
+  colour with a matching spine on the leading edge.
+- **Search is always visible** instead of a zero-width field that expanded on
+  hover. `Ctrl K` focuses it and `Escape` clears it.
+- **Thin scrollbar** replaces the hidden one.
+- **Note window rethemed** with custom chrome: the Tabbin mark, pin and close
+  controls, per-note colour dots, live active-formatting highlight, a word count
+  and a saved-status dot.
+- **Palette reworked** from six flat tab colours to five softer pastels. Existing
+  notes are re-tinted on first launch, mapped to the nearest new colour by RGB
+  distance; the migration is idempotent and never rewrites a colour it cannot
+  parse.
+- **Bundled Geist typeface** rather than a Google Fonts link, so the UI renders
+  identically offline and does not wait on a CDN.
+- **Dock width 390px → 320px**, matching the design.
+
+### Fixed
+
+- **Typing in a note window ghosted and flickered a white box.** The window was
+  frameless with an alpha-0 background but no `transparent: true`, so Chromium
+  composited an uninitialised region over the text. The window is now opaque.
+- **`thickFrame` disabled** on the frameless note window. It kept OS resize
+  hit-testing active through every drag, making resize the most expensive repaint
+  the window performed.
+- **The save round-trip no longer rebuilds the editor.** Saving broadcasts
+  `notes:changed` back to the originating window, which reassigned
+  `editor.innerHTML` and destroyed the caret. `apply()` now writes only genuine
+  changes.
+- **Word count debounced.** Reading `editor.innerText` forces a synchronous
+  layout flush and was running on every keystroke.
+- **Dock unreadable over a busy desktop.** The glass tint is now 0.96 alpha. The
+  design mockup's 0.74 assumed a `backdrop-filter` blur that a frameless
+  Electron overlay has nothing to sample.
+
+### Notes
+
+- Acrylic was removed from the dock: Windows composites it across the whole
+  rectangular window, filling the corners beneath the CSS `border-radius` and
+  making them read as fake.
+- The mockup's coloured edge pills were tried and removed — they sit in the left
+  margin and obstruct normal scrolling. The collapsed dock draws nothing.
+
 ## [1.0.1] - 2026-10-02
 
 ### Fixed
