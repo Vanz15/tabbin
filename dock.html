@@ -4,12 +4,38 @@
     <meta charset="UTF-8" />
     <title>Tabbin</title>
     <style>
+      /* Geist, bundled rather than hotlinked: an Electron app that reaches a
+         font CDN on every launch stalls on a slow link and shows a fallback
+         face when offline. Geist ships as a variable font, so one 29 KB file
+         covers 400/500/600 through the weight axis. */
+      @font-face {
+        font-family: "Geist";
+        src: url("fonts/Geist-Variable.woff2") format("woff2-variations");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+      }
+      /* Frosted-glass tokens, ported from the design mockup and mirrored
+         for a left-docked panel. The alpha is deliberately much higher than the
+         mockup's .74: the mockup had `backdrop-filter: blur(22px)` behind that
+         tint, which a frameless transparent Electron overlay has nothing to
+         sample. Without that blur, .74 left the dock unreadable over a busy
+         desktop — text from the window behind showed straight through. This
+         value keeps the frosted tint and border while making the surface
+         effectively opaque to whatever is behind it. */
       :root {
-        font-family:
-          Inter,
-          Segoe UI,
-          sans-serif;
-        color: #f5f5f7;
+        --glass: rgba(20, 20, 23, 0.96);
+        --glass-line: rgba(255, 255, 255, 0.09);
+        --glass-hi: rgba(255, 255, 255, 0.08);
+        --ink: #f4f4f5;
+        --ink2: #b4b4bc;
+        --ink3: #8b8b93;
+        --accent: #8ec5e8;
+        --danger: #f2786e;
+        --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, sans-serif;
+        font-family: var(--font);
+        color: var(--ink);
       }
       * {
         box-sizing: border-box;
@@ -17,191 +43,241 @@
       html,
       body {
         margin: 0;
+        /* Must stay transparent so the OS acrylic behind the window shows
+           through. A test asserts on this exact declaration. */
         background: transparent !important;
         overflow: hidden;
-        font-family:
-          Inter,
-          Segoe UI,
-          sans-serif;
+        font-family: var(--font);
+      }
+      /* The mockup's own scrollbar rule: a thin standard bar with a faint
+         thumb, NOT a hidden one. The previous build zeroed it with
+         ::-webkit-scrollbar, which is why the trial looked different from
+         the prototype side by side. */
+      .stack {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
+      .stack::-webkit-scrollbar {
+        width: 8px;
+      }
+      .stack::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .stack::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+      }
+      .stack::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.28);
       }
       .dock {
         height: 100vh;
-        padding: 18px 18px 18px 12px;
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        background: transparent !important;
+        gap: 8px;
+        padding: 10px 14px 14px;
+        background: var(--glass);
+        border: 1px solid var(--glass-line);
         border-radius: 18px;
+        box-shadow:
+          inset 0 1px 0 var(--glass-hi),
+          0 28px 70px rgba(0, 0, 0, 0.45),
+          0 2px 8px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
       }
-      .dock.right {
-        align-items: flex-end;
-        padding: 18px 12px 18px 18px;
-      }
+      /* Header row: always-visible search plus icon buttons, as in the mockup */
       .top {
-        width: 100%;
+        flex: 0 0 auto;
         display: flex;
-        justify-content: flex-start;
+        align-items: center;
         gap: 6px;
-        margin-bottom: 14px;
-        background: transparent;
-      }
-      .right .top {
-        justify-content: flex-end;
+        /* the mockup's .bar padding, with the top inset tightened so the search
+           row sits closer to the top of the panel */
+        padding: 6px 0 8px;
       }
       .search {
-        width: 0;
-        opacity: 0;
-        transition:
-          opacity 320ms ease,
-          width 360ms cubic-bezier(0.22, 1, 0.36, 1);
-        padding: 8px 10px;
-        border: 1px solid #ffffff2a;
-        border-radius: 12px;
-        background: #1e2130cc;
-        color: white;
+        flex: 1;
+        min-width: 0;
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 13px;
         outline: none;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
       }
-      .dock:hover .search {
-        width: 150px;
-        opacity: 1;
+      .search::placeholder {
+        color: var(--ink3);
+      }
+      .search:focus {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.16);
       }
       .button {
+        flex: 0 0 auto;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
         border: 0;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.35);
-        color: rgba(0, 0, 0, 0.85);
-        font-size: 18px;
-        width: 34px;
-        height: 34px;
+        border-radius: 8px;
+        background: none;
+        color: var(--ink2);
+        font-family: var(--font);
         cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .button svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
       .button:hover {
-        background: rgba(255, 255, 255, 0.75);
-        color: rgba(0, 0, 0, 0.95);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--ink);
       }
-
       .quit {
-        color: #ff6b6b;
+        color: var(--danger);
       }
+      .quit:hover {
+        background: rgba(242, 120, 110, 0.16);
+        color: #f7a39a;
+      }
+      /* Note cards: full width and always readable. The previous design hid the
+         title behind a 42px collapsed tab that expanded on hover, which cannot
+         survive in a static card list. */
       .stack {
-        position: relative;
         flex: 1;
-        width: 100%;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
         overflow-y: auto;
-        overflow-x: visible;
-        padding: 4px 0 92px;
-        scrollbar-width: none;
-        background: transparent;
-      }
-      .stack::-webkit-scrollbar {
-        width: 0;
-        height: 0;
+        overflow-x: hidden;
+        /* padding from the mockup's .list */
+        padding: 4px 0 10px;
       }
       .tab {
         position: relative;
-        margin: 0 auto 6px 0;
-        width: 42px;
-        min-height: 30px;
-        border-radius: 4px 10px 10px 4px;
+        flex: 0 0 auto;
+        width: 100%;
+        padding: 10px 11px 10px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        /* --c is set per note and drives both the tint and the colour spine.
+           15% matches the mockup's card tint exactly. */
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--c, #8ec5e8) 15%, transparent),
+          rgba(255, 255, 255, 0.035) 62%
+        );
+        color: var(--ink);
         cursor: grab;
         transition:
-          width 460ms cubic-bezier(0.22, 1, 0.36, 1),
-          box-shadow 360ms ease;
-        z-index: 1;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          transform 0.15s,
+          border-color 0.15s,
+          box-shadow 0.2s;
+      }
+      .tab::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 10px;
+        bottom: 10px;
+        width: 3px;
+        border-radius: 3px;
+        background: var(--c, #8ec5e8);
+      }
+      .tab:hover {
+        border-color: rgba(255, 255, 255, 0.14);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
       }
       .tab:active {
         cursor: grabbing;
       }
-      .tab:hover {
-        width: 270px;
-        z-index: 20;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        transition: width 0.3s ease;
-      }
       .tab.dragging {
-        opacity: 0.45;
+        opacity: 0.55;
+        transform: rotate(1deg) scale(1.02);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+        cursor: grabbing;
       }
       .tab.drag-over {
-        outline: 2px dashed #fff;
+        outline: 2px dashed rgba(255, 255, 255, 0.5);
         outline-offset: 2px;
       }
-      .right .tab {
-        margin-left: auto;
-        margin-right: 0;
-        border-radius: 10px 4px 4px 10px;
-      }
       .tab .inside {
-        padding: 7px 10px;
-        min-height: 30px;
+        min-width: 0;
       }
       .title {
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
+        letter-spacing: -0.005em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .preview {
-        font-size: 11px;
-        font-style: italic;
-        line-height: 1.4;
-        margin-top: 5px;
+        margin-top: 3px;
+        font-size: 12px;
+        font-style: normal;
+        line-height: 1.45;
+        color: var(--ink2);
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         white-space: pre-line;
-        color: inherit;
       }
-      .tab:not(:hover) .title,
-      .tab:not(:hover) .preview {
-        visibility: hidden;
+      .tabtime {
+        display: block;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--ink3);
       }
       .empty {
-        color: #ffffff88;
-        padding: 20px;
+        margin: auto;
+        padding: 24px 12px;
+        text-align: center;
+        color: var(--ink2);
         font-size: 13px;
       }
-      .hint {
-        position: absolute;
-        bottom: 14px;
-        left: 14px;
-        color: #ffffff55;
-        font-size: 11px;
-      }
-      .right .hint {
-        left: auto;
-        right: 14px;
-      }
+      /* Update status row — behaviour untouched, colours moved onto the glass
+         palette. A test asserts on id="update". */
       .update {
-        position: absolute;
-        bottom: 34px;
-        left: 14px;
-        right: 14px;
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 7px 10px;
+        border: 1px solid var(--glass-line);
         border-radius: 10px;
-        background: #1e2130e6;
-        color: #f5f5f7;
+        background: rgba(20, 20, 23, 0.72);
+        color: var(--ink);
         font-size: 11.5px;
-        box-shadow: 0 4px 14px #00000047;
         cursor: pointer;
         user-select: none;
-        z-index: 30;
       }
       .update[hidden] {
         display: none;
       }
       .update.ready {
-        background: #1d3a2ee6;
+        background: rgba(20, 46, 36, 0.78);
       }
       .update.error {
-        background: #3a1d22e6;
+        background: rgba(56, 26, 32, 0.78);
       }
       .update .label {
         flex: 1;
@@ -214,7 +290,7 @@
         flex: 0 0 46px;
         height: 4px;
         border-radius: 2px;
-        background: #ffffff24;
+        background: rgba(255, 255, 255, 0.14);
         overflow: hidden;
       }
       .update .bar > i {
@@ -222,21 +298,56 @@
         width: 0;
         height: 100%;
         border-radius: 2px;
-        background: #8fbfe0;
-        transition: width 180ms ease;
+        background: var(--accent);
+        transition: width 0.18s ease;
       }
       .update .dismiss {
         flex: 0 0 auto;
         border: 0;
         padding: 0 2px;
         background: transparent;
-        color: #ffffff88;
+        color: var(--ink3);
         font-size: 13px;
         line-height: 1;
         cursor: pointer;
       }
       .update .dismiss:hover {
-        color: #ffffff;
+        color: var(--ink);
+      }
+      /* Footer: note count, mirroring the mockup's .foot */
+      .foot {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 11px;
+        color: var(--ink3);
+      }
+      .foot .count {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .foot .version {
+        flex: 0 0 auto;
+        opacity: 0.75;
+      }
+      .foot button {
+        flex: 0 0 auto;
+        border: 0;
+        padding: 0;
+        background: none;
+        color: var(--ink2);
+        font-size: 11px;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .foot button:hover {
+        color: var(--ink);
       }
       .typewriter {
         overflow: hidden;
@@ -246,8 +357,20 @@
       }
 
       @keyframes typing {
-        from { width: 0; }
-        to { width: 100%; }
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .typewriter {
+          animation: none;
+        }
+        .tab {
+          transition: none;
+        }
       }
     </style>
   </head>
@@ -258,14 +381,40 @@
           id="new"
           class="button"
           title="New note"
+          aria-label="New note"
         >
-          +</button
-        ><button id="hide" class="button" title="Hide dock">👁</button
-        ><button id="quit" class="button quit" title="Exit Tabbin">×</button>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button
+        ><button
+          id="hide"
+          class="button"
+          title="Hide dock"
+          aria-label="Hide dock"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button
+        ><button
+          id="quit"
+          class="button quit"
+          title="Exit Tabbin"
+          aria-label="Exit Tabbin"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
       </div>
       <div id="stack" class="stack"></div>
       <div id="update" class="update" hidden></div>
-      <div class="hint">move to edge to reveal · drag to reorder · <span id="appVersion">v1.0.0</span></div>
+      <div class="foot">
+        <span class="count" id="noteCount"></span
+        ><button id="feedback" title="Send feedback">Send feedback</button
+        ><span class="version" id="appVersion"></span>
+      </div>
     </main>
     <script>
       let notes = [],
@@ -274,6 +423,7 @@
         stack = document.querySelector("#stack"),
         search = document.querySelector("#search"),
         updateEl = document.querySelector("#update"),
+        noteCount = document.querySelector("#noteCount"),
         appVersion = document.querySelector("#appVersion");
       // `action` and `visible` are resolved in the main process so this file
       // never re-derives update policy from status strings.
@@ -345,83 +495,91 @@
           });
         }
       }
-      function getContrastTextColor(bgColor) {
-          let r, g, b;
-          if (bgColor.indexOf('#') === 0) {
-            r = parseInt(bgColor.substr(1, 2), 16);
-            g = parseInt(bgColor.substr(3, 2), 16);
-            b = parseInt(bgColor.substr(5, 2), 16);
-          } else {
-            return '#ffffff';
-          }
-          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          return luminance > 0.6 ? '#1d1d1d' : '#ffffff';
-        }
+      function relativeTime(ts) {
+        if (!ts) return "";
+        const mins = Math.floor((Date.now() - ts) / 60000);
+        if (mins < 1) return "Just now";
+        if (mins < 60) return mins + "m ago";
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return hours + "h ago";
+        const days = Math.floor(hours / 24);
+        if (days < 7) return days + "d ago";
+        return new Date(ts).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+      }
       function render() {
-          const q = search.value.toLowerCase();
-          stack.innerHTML = "";
-          const shown = notes.filter((n) =>
-            (n.title + " " + n.content).toLowerCase().includes(q),
-          );
-          if (!shown.length) {
-            stack.innerHTML = '<div class="empty">No notes yet</div>';
-            return;
-          }
-          shown.forEach((n) => {
-            const el = document.createElement("article");
-            el.className = "tab";
-            el.draggable = true;
-            el.dataset.id = n.id;
-            el.style.background = n.color;
-            el.innerHTML =
-              '<div class="inside"><div class="title"></div><div class="preview"></div></div>';
-            el.querySelector(".title").textContent = n.title || "Untitled note";
-            el.querySelector(".preview").textContent = (n.content || "Empty note")
-              .replace(/<[^>]*>/g, "")
-              .slice(0, 120);
-
-            // Set text color based on background contrast
-            const textColor = getContrastTextColor(n.color);
-            el.querySelector(".title").style.color = textColor;
-            el.querySelector(".preview").style.color = textColor === '#ffffff' ? '#ffffffdd' : textColor;
-            el.querySelector(".preview").classList.add("typewriter");
-            el.querySelector(".preview").style.animationDelay = "0.1s";
-
-            el.onclick = () => {
-              if (!dragId) window.tabbin.open(n.id);
-            };
-            el.ondragstart = (e) => {
-              dragId = n.id;
-              el.classList.add("dragging");
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/plain", n.id);
-            };
-            el.ondragend = () => {
-              dragId = null;
-              el.classList.remove("dragging");
-              document
-                .querySelectorAll(".drag-over")
-                .forEach((x) => x.classList.remove("drag-over"));
-            };
-            el.ondragover = (e) => {
-              e.preventDefault();
-              if (dragId && dragId !== n.id) el.classList.add("drag-over");
-            };
-            el.ondragleave = () => el.classList.remove("drag-over");
-            el.ondrop = (e) => {
-              e.preventDefault();
-              el.classList.remove("drag-over");
-              const from = notes.findIndex((x) => x.id === dragId),
-                to = notes.findIndex((x) => x.id === n.id);
-              if (from < 0 || to < 0 || from === to) return;
-              const moved = notes.splice(from, 1)[0];
-              notes.splice(to, 0, moved);
-              window.tabbin.reorder(notes.map((x) => x.id));
-              render();
-            };
-            stack.appendChild(el);
-          });
+        const q = search.value.trim().toLowerCase();
+        stack.innerHTML = "";
+        const shown = notes.filter((n) =>
+          (n.title + " " + n.content).toLowerCase().includes(q),
+        );
+        noteCount.textContent =
+          notes.length +
+          (notes.length === 1 ? " note" : " notes") +
+          (shown.length !== notes.length ? " · " + shown.length + " shown" : "");
+        if (!shown.length) {
+          stack.innerHTML = q
+            ? '<div class="empty">No notes match your search.</div>'
+            : '<div class="empty">No notes yet.</div>';
+          return;
         }
+        shown.forEach((n) => {
+          const el = document.createElement("article");
+          el.className = "tab";
+          el.draggable = true;
+          el.dataset.id = n.id;
+          // --c drives both the card tint and the leading colour spine. The note
+          // body is no longer painted with the note colour, so the previous
+          // luminance-based contrast helper is gone.
+          el.style.setProperty("--c", n.color);
+          el.innerHTML =
+            '<div class="inside"><div class="title"></div><div class="preview"></div><span class="tabtime"></span></div>';
+          el.querySelector(".title").textContent = n.title || "Untitled note";
+          el.querySelector(".preview").textContent = (n.content || "Empty note")
+            .replace(/<[^>]*>/g, "")
+            .slice(0, 160);
+          el.querySelector(".tabtime").textContent = relativeTime(n.updatedAt);
+          // Keep the typewriter reveal on the preview, as before.
+          el.querySelector(".preview").classList.add("typewriter");
+          el.querySelector(".preview").style.animationDelay = "0.1s";
+
+          el.onclick = () => {
+            if (!dragId) window.tabbin.open(n.id);
+          };
+          el.ondragstart = (e) => {
+            dragId = n.id;
+            el.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", n.id);
+          };
+          el.ondragend = () => {
+            dragId = null;
+            el.classList.remove("dragging");
+            document
+              .querySelectorAll(".drag-over")
+              .forEach((x) => x.classList.remove("drag-over"));
+          };
+          el.ondragover = (e) => {
+            e.preventDefault();
+            if (dragId && dragId !== n.id) el.classList.add("drag-over");
+          };
+          el.ondragleave = () => el.classList.remove("drag-over");
+          el.ondrop = (e) => {
+            e.preventDefault();
+            el.classList.remove("drag-over");
+            const from = notes.findIndex((x) => x.id === dragId),
+              to = notes.findIndex((x) => x.id === n.id);
+            if (from < 0 || to < 0 || from === to) return;
+            const moved = notes.splice(from, 1)[0];
+            notes.splice(to, 0, moved);
+            window.tabbin.reorder(notes.map((x) => x.id));
+            render();
+          };
+          stack.appendChild(el);
+        });
+      }
       search.oninput = render;
       document.querySelector("#new").onclick = () => window.tabbin.create();
       document.querySelector("#hide").onclick = (e) => {
@@ -429,7 +587,21 @@
         window.tabbin.hide();
       };
       document.querySelector("#quit").onclick = () => window.tabbin.quit();
+      document.querySelector("#feedback").onclick = () =>
+        window.open("https://github.com/Vanz15/tabbin/issues/new/choose", "_blank");
       root.addEventListener("mouseleave", () => window.tabbin.cursorLeft());
+      // Ctrl K focuses search and Escape clears it, both from the mockup.
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault();
+          search.focus();
+          search.select();
+        } else if (e.key === "Escape" && document.activeElement === search) {
+          search.value = "";
+          render();
+          search.blur();
+        }
+      });
       window.tabbin.onChanged((x) => {
         notes = x;
         render();
@@ -442,8 +614,7 @@
       // Pull as well as subscribe: an update can be discovered before this
       // renderer finishes loading, and a push-only listener would miss it.
       window.tabbin.updateStatus().then((s) => {
-        if (s && s.currentVersion)
-          appVersion.textContent = "v" + s.currentVersion;
+        if (s && s.currentVersion) appVersion.textContent = "v" + s.currentVersion;
         renderUpdate(s);
       });
     </script>
