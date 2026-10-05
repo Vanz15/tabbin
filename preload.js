@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('tabbin', {
   open: id => ipcRenderer.invoke('notes:open', id),
   hide: () => ipcRenderer.invoke('dock:hide'),
   cursorLeft: () => ipcRenderer.invoke('dock:cursor-left'),
+  reportContentHeight: h => ipcRenderer.invoke('dock:content-height', h),
   quit: () => ipcRenderer.invoke('app:quit'),
   config: () => ipcRenderer.invoke('config:get'),
   setConfig: patch => ipcRenderer.invoke('config:set', patch),

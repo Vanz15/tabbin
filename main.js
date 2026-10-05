@@ -11,6 +11,9 @@ let dock;
 let loadingWindow;
 let dockState = 'hidden';
 let hideTimer = null;
+// Natural height of the renderer's note list, reported on every render so the
+// window can hug its content and stay vertically centred. 0 until first report.
+let dockContentHeight = 0;
 const noteWindows = new Map();
 
 const userDataFile = name => path.join(app.getPath('userData'), name);
@@ -56,7 +59,16 @@ const seed = [
   { id: 'ideas', title: 'Ideas', content: 'Capture ideas quickly, then keep working without losing your train of thought.', color: '#9CCFA5', updatedAt: Date.now() - 1000 },
   { id: 'tasks', title: 'Today', content: '• Clear pending tasks\n• Hit the gym\n• Rest and recharge', color: '#F2A38F', updatedAt: Date.now() - 2000 }
 ];
-const defaultConfig = { edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430, dockWidth: 'roomy', saveLocation: 'same' };
+// dockBg selects the dock's appearance:
+//   'clear' - no panel; coloured note tiles that expand on hover
+//   'glass' - the near-opaque 2.0.0 panel behind glass cards
+//   'bare'  - the same glass cards with no panel behind them
+// 'clear' is the default per the v2.1 request.
+const DOCK_BACKGROUNDS = ['clear', 'glass', 'bare'];
+const defaultConfig = {
+  edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430,
+  dockWidth: 'compact', dockBg: 'clear', saveLocation: 'same', launchOnStartup: false
+};
 
 function hexToRgb(hex) {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
@@ -181,8 +193,22 @@ function layout() {
     // tried here and removed, because they sit in the left margin and obstruct
     // normal scrolling. Nothing is drawn while collapsed.
     const hiddenWidth = 10;
-  const height = Math.min(760, display.workAreaSize.height - 120);
-  const y = display.workArea.y + 80;
+  // The dock is content-sized and vertically centred instead of filling the
+  // screen edge to edge. The renderer measures the height of the notes it is
+  // showing (VISIBLE_BY_MODE: six clear tiles, four glass/bare cards) and reports
+  // it here; CHROME_H covers the top bar and footer, and keeps the window from
+  // collapsing on first paint before that measurement arrives.
+  const CHROME_H = 96;
+  const natural = typeof dockContentHeight === 'number' && dockContentHeight > 0 ? dockContentHeight : 0;
+  const height = Math.min(
+    display.size.height,
+    Math.max(220, natural + CHROME_H),
+  );
+  // Centre against the ACTUAL screen height, not workAreaSize. workArea excludes
+  // the taskbar, so centring against it left the dock pinned high (y=0 on a
+  // 1008px screen) instead of optically centred.
+  const screenH = display.size.height;
+  const y = Math.max(0, Math.round((screenH - height) / 2));
   const width = ['revealed', 'revealing', 'hiding'].includes(dockState) ? fullWidth : hiddenWidth;
   const x = config.edge === 'right' ? display.workArea.x + display.workArea.width - width : display.workArea.x;
   dock.setBounds({ x, y, width, height });
@@ -330,6 +356,20 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
   app.setAppUserModelId('com.vanz15.tabbin');
   Menu.setApplicationMenu(null);
   if (!fs.existsSync(configFile())) saveConfig(defaultConfig);
+  // The stored flag can disagree with reality — a user can remove the entry in
+  // Task Manager, or reinstall. Ask Windows what is registered so the toggle
+  // reflects the truth rather than a stale preference.
+  try {
+    const actual = app.getLoginItemSettings().openAtLogin;
+    const stored = loadConfig().launchOnStartup;
+    if (typeof actual === 'boolean' && actual !== stored) {
+      const synced = { ...loadConfig(), launchOnStartup: actual };
+      saveConfig(synced);
+      console.log('[Tabbin] Startup flag reconciled with Windows:', stored, '->', actual);
+    }
+  } catch (err) {
+    console.log('[Tabbin] Could not read login item settings:', err.message);
+  }
   if (!loadNotes().length) saveNotes(seed);
   // Re-tint any notes still carrying a legacy palette colour. Runs every
   // launch but is a no-op once notes are on the glass palette.
@@ -346,7 +386,12 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('app:quit', () => app.quit());
-ipcMain.handle('config:get', () => ({ ...loadConfig(), palette, notesPath: dataFile() }));
+ipcMain.handle('config:get', () => {
+  const config = loadConfig();
+  // Never hand the renderer a value it would put straight into classList.add().
+  if (!DOCK_BACKGROUNDS.includes(config.dockBg)) config.dockBg = defaultConfig.dockBg;
+  return { ...config, palette, notesPath: dataFile() };
+});
 // Settings persist immediately and re-layout the dock, so a change to the
 // activation edge or width is visible without a restart.
 ipcMain.handle('config:set', (_, patch) => {
@@ -357,6 +402,34 @@ ipcMain.handle('config:set', (_, patch) => {
   if ('saveLocation' in patch && !isValidSaveDir(patch.saveLocation)) {
     console.log('[Tabbin] Rejected invalid save location:', patch.saveLocation);
     return current;
+  }
+  // An unknown background would end up in a classList.add() in the renderer, so
+  // it is filtered here rather than trusted from a patched config file.
+  if ('dockBg' in patch && !DOCK_BACKGROUNDS.includes(patch.dockBg)) {
+    console.log('[Tabbin] Rejected unknown dock background:', patch.dockBg);
+    return current;
+  }
+  // Startup registration is a real side effect on the user's machine, so it is
+  // applied the moment the value changes rather than only at next launch.
+  if ('launchOnStartup' in patch && typeof patch.launchOnStartup === 'boolean') {
+    const wanted = patch.launchOnStartup;
+    // `openAtLogin` alone is not enough for a dev run: `npm start` launches
+    // electron.exe out of node_modules, so the registered path has to point at
+    // that binary. In a packaged build app.getPath('exe') is Tabbin.exe itself,
+    // which is exactly what should launch at sign-in.
+    const exePath = app.isPackaged ? process.execPath : path.join(process.execPath, '..', '..', 'electron.exe');
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: wanted,
+        openAsHidden: false,
+        path: exePath,
+        args: app.isPackaged ? [] : ['.'],
+      });
+      console.log('[Tabbin] Launch on startup:', wanted, '->', exePath);
+    } catch (err) {
+      console.log('[Tabbin] Could not set login item:', err.message);
+      return current;
+    }
   }
   if (patch.saveLocation && patch.saveLocation !== current.saveLocation) {
     migrateNotesDir(notesDir(), patch.saveLocation);
@@ -429,6 +502,14 @@ ipcMain.handle('notes:clear', async (_, confirm) => {
   return { cleared: notes.length };
 });
 ipcMain.handle('dock:hide', () => hideDock());
+ipcMain.handle('dock:content-height', (_, h) => {
+  const next = Math.max(0, Math.round(Number(h) || 0));
+  // Ignore nonsense and no-op repaints: relaying out on every frame would make
+  // the dock jitter while the user scrolls or types in search.
+  if (!next || Math.abs(next - dockContentHeight) < 4) return;
+  dockContentHeight = next;
+  layout();
+});
 ipcMain.handle('dock:cursor-left', () => scheduleHide());
 // Folder picker for the Settings "Save location" row. Returns the chosen
 // absolute path, or null if the user cancels. Persists via config:set.

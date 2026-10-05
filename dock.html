@@ -21,9 +21,14 @@
          tint, which a frameless transparent Electron overlay has nothing to
          sample. Without that blur, .74 left the dock unreadable over a busy
          desktop — text from the window behind showed straight through. This
-         value keeps the frosted tint and border while making the surface
+         value keeps the glass tint and border while making the surface
          effectively opaque to whatever is behind it. */
       :root {
+        /* Dock background is user-selectable (Settings -> Dock background).
+           These are the per-mode values; `.dock` carries the active mode class.
+           - glass : the 2.0.0 treatment, near-opaque panel behind glass cards
+         - bare  : the same glass cards with no panel behind them
+         - clear : no panel at all; only coloured note tiles, expanding on hover */
         --glass: rgba(20, 20, 23, 0.96);
         --glass-line: rgba(255, 255, 255, 0.09);
         --glass-hi: rgba(255, 255, 255, 0.08);
@@ -49,33 +54,26 @@
         overflow: hidden;
         font-family: var(--font);
       }
-      /* The mockup's own scrollbar rule: a thin standard bar with a faint
-         thumb, NOT a hidden one. The previous build zeroed it with
-         ::-webkit-scrollbar, which is why the trial looked different from
-         the prototype side by side. */
+      /* Scrollbar hidden on purpose: the note column reads as a clean list and the
+         bar was cluttering the right edge. The column still scrolls with the wheel
+         and keyboard, so nothing becomes unreachable. */
       .stack {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+        scrollbar-width: none;
       }
       .stack::-webkit-scrollbar {
-        width: 8px;
-      }
-      .stack::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .stack::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
-      }
-      .stack::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.28);
+        width: 0;
+        height: 0;
       }
       .dock {
-        height: 100vh;
+        /* 100%, not 100vh. The window is now sized to its content by the main
+           process, so 100vh forced the panel to fill whatever height it was
+           given and the centring had no visible effect. */
+        height: 100%;
+        min-height: 100%;
         display: flex;
         flex-direction: column;
         gap: 8px;
-        padding: 10px 14px 14px;
+        padding: 8px 12px 12px;
         background: var(--glass);
         border: 1px solid var(--glass-line);
         border-radius: 18px;
@@ -110,6 +108,114 @@
         transition:
           background 0.15s,
           border-color 0.15s;
+      }
+      /* The search field only exists while searching; the wrapper is toggled by
+         [hidden] so no layout jump is needed when it opens. */
+      /* The wrapper is always present. Collapsed it is just the glyph; expanded
+         it carries the field. `flex: 1` would stretch it across the bar even
+         collapsed, so it only takes the free space once the field is showing. */
+      .searchwrap {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .searchwrap.open {
+        flex: 1;
+        min-width: 0;
+      }
+      .search-btn {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .search-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .search-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      /* Inside the field the glyph sits on the field's own background, so it is
+         flattened rather than drawn as a second pill. */
+      .searchwrap.open .search-toggle-inset {
+        background: none;
+      }
+      /* Overflow menu. Anchored under the menu glyph, opaque so it stays legible
+         over the desktop in clear and bare modes. */
+      .menu {
+        position: absolute;
+        top: 52px;
+        right: 14px;
+        z-index: 50;
+        min-width: 168px;
+        padding: 6px;
+        border-radius: 12px;
+        background: #17171b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+      }
+      .menu[hidden] {
+        display: none;
+      }
+      .dock.right .menu {
+        right: auto;
+        left: 14px;
+      }
+      .mitem {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--ink);
+        font-family: inherit;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .mitem:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .mitem svg {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .mitem.quit {
+        color: #ff8f7a;
+      }
+      .sfoot-link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--ink3);
+        font: inherit;
+        cursor: pointer;
+      }
+      .sfoot-link:hover {
+        color: var(--ink);
       }
       .search::placeholder {
         color: var(--ink3);
@@ -158,9 +264,19 @@
       /* Note cards: full width and always readable. The previous design hid the
          title behind a 42px collapsed tab that expanded on hover, which cannot
          survive in a static card list. */
+      /* The list shows at most five notes and scrolls beyond that. The cap is a
+         max-height rather than a fixed window size because card height is
+         content-driven in glass/bare but a fixed 52px tile in clear mode — one
+         number cannot serve both. The renderer measures the natural height and
+         the main process sizes and centres the window to match. */
       .stack {
-        flex: 1;
+        flex: 0 1 auto;
         min-height: 0;
+        /* The five-card window is a MEASURED height, written by the renderer as
+           --list-max after it has laid out the first five cards. A hard-coded
+           pixel value cannot express "five notes": cards are content-driven and
+           vary in height, so any fixed number fits a different count. */
+        max-height: var(--list-max, 70vh);
         display: flex;
         flex-direction: column;
         gap: 7px;
@@ -199,6 +315,17 @@
         width: 3px;
         border-radius: 3px;
         background: var(--c, #8ec5e8);
+      }
+      /* Exactly one chevron is drawn; `.right` picks which. The hide arrow has to
+         point back at the edge the dock tucks into, so it flips with the layout. */
+      .chev-r {
+        display: none;
+      }
+      .dock.right #hide .chev-l {
+        display: none;
+      }
+      .dock.right #hide .chev-r {
+        display: block;
       }
       .tab:hover {
         border-color: rgba(255, 255, 255, 0.14);
@@ -364,6 +491,331 @@
           width: 100%;
         }
       }
+      /* --- Dock background modes -------------------------------------
+         Three selectable appearances, ported from the design mockup. Each is a
+         class on .dock set from the config value `dockBg`; only the presentation
+         changes, never the markup, so all features work in every mode.
+
+         clear   - no panel. Notes become compact tiles that expand on hover.
+         glass   - the near-opaque 2.0.0 treatment. */
+      /* Frosted is Clear's tile layout with a translucent panel dropped behind
+         it, so the desktop tints the surface. There is still no real blur: this
+         is a separate transparent window, so `backdrop-filter` has nothing to
+         sample — the effect is alpha alone. 0.80 is the point where light text
+         stays readable over an arbitrary desktop while the wallpaper still
+         shows through. */
+      .dock.glass {
+        --glass: rgba(20, 20, 23, 0.96);
+        --glass-line: rgba(255, 255, 255, 0.09);
+        --glass-hi: rgba(255, 255, 255, 0.08);
+      }
+
+      /* Bare: the glass cards with no panel behind them. The cards keep the
+         glass design — full width, colour spine, light ink — but there is no
+         panel, so each card has to supply its own contrast. The glass card fill
+         is only a 15% colour tint over 3.5% white, which is effectively
+         transparent; inside the glass panel the near-opaque surface behind it
+         made that readable. Here the card gets the panel's own dark base at the
+         same tint, so it reads as the same design whether or not a panel is
+         behind it. */
+      .dock.bare {
+        --glass: transparent;
+        --glass-line: transparent;
+        background: none;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      /* Only the cards, search and footer take clicks, so the desktop stays
+         reachable in the gaps — the same reasoning as clear mode. */
+      .dock.bare .stack {
+        /* Five cards plus four 7px gaps. The card height is content-driven, so
+           this is a ceiling rather than an exact fit — the renderer clamps its
+           reported height to it and the list scrolls inside. */
+        pointer-events: none;
+      }
+      /* Glass and Bare render the same cards, so they share one cap. Glass had no
+         --list-max of its own and silently fell back to the 620px default, which
+         is why it showed a different number of cards than the other two modes. */
+
+      .dock.bare .top,
+      .dock.bare .foot,
+      .dock.bare .sets,
+      .dock.bare .tab {
+        pointer-events: auto;
+      }
+      /* The card carries the dark base the panel would have provided. */
+      .dock.bare .tab {
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--c, #8ec5e8) 15%, transparent),
+            rgba(255, 255, 255, 0.035) 62%
+          ),
+          var(--glass-bare, rgba(20, 20, 23, 0.96));
+        border-color: rgba(255, 255, 255, 0.09);
+      }
+      /* Same small blurred chips as clear mode, so the search field and buttons
+         stay legible against an arbitrary desktop. */
+      .dock.bare .search {
+        background: rgba(18, 20, 30, 0.5);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+      .dock.bare .search::placeholder {
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .dock.bare .button {
+        background: rgba(18, 20, 30, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+      .dock.bare .button:hover {
+        background: rgba(255, 255, 255, 0.26);
+      }
+      .dock.bare .update {
+        background: rgba(18, 20, 30, 0.72);
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #fff;
+      }
+      .dock.bare .foot {
+        border-top: 0;
+        color: rgba(255, 255, 255, 0.85);
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+      }
+      .dock.bare .foot button,
+      .dock.bare .foot .version {
+        color: rgba(255, 255, 255, 0.85);
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+      }
+      /* Settings needs its own opaque surface now that the dock has none. */
+      .dock.bare .sets {
+        background: #141417;
+      }
+
+      /* Clear mode draws nothing but the tiles. The window is already
+         transparent, so removing the panel's background, border, shadow and
+         radius is all it takes to see the desktop through. `.dock` also stops
+         swallowing clicks: only its interactive children take pointer events, so
+         the empty space beside the tiles stays click-through to whatever is
+         underneath. */
+      .dock.clear {
+        --glass: transparent;
+        --glass-line: transparent;
+        background: none;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .dock.clear .top,
+      .dock.clear .foot,
+      .dock.clear .sets,
+      .dock.clear .tab {
+        pointer-events: auto;
+      }
+      /* In clear mode the list itself must not eat clicks meant for the desktop
+         — only the tiles are interactive. */
+      .dock.clear .stack {
+        pointer-events: none;
+      }
+      /* The header and footer keep their own small blurred chips so the search
+         field and buttons stay legible against an arbitrary desktop. */
+      .dock.clear .search {
+        background: rgba(18, 20, 30, 0.5);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+      .dock.clear .search::placeholder {
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .dock.clear .button {
+        background: rgba(18, 20, 30, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+
+      .dock.clear .button:hover {
+        background: rgba(255, 255, 255, 0.26);
+      }
+
+      .dock.clear .foot {
+        border-top: 0;
+        color: rgba(255, 255, 255, 0.85);
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+      }
+      .dock.clear .foot button,
+      .dock.clear .foot .version {
+        color: rgba(255, 255, 255, 0.85);
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Clear mode needs its own opaque panel behind settings: with no dock
+         background there would be nothing behind the overlay. */
+      .dock.clear .sets {
+        background: rgba(24, 24, 27, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(22px);
+      }
+
+      /* --- Right-edge mirror ------------------------------------------
+         The `.right` class was toggled by applyCfg() from the start but had no
+         rules behind it, so a right-docked panel rendered exactly like a left one:
+         notes still grew rightward off the screen, the colour spine sat on the
+         wrong side, and the hide arrow still pointed left. Everything below
+         mirrors the left-edge defaults rather than restating them. */
+      /* On the right edge the top bar mirrors: search / add / menu sit against the
+         RIGHT of the panel, so the glyphs hug the screen edge rather than sitting
+         in the middle. `.top` is a flex row, so ordering is done by pushing the
+         three groups to the end with margin-left:auto on the first. */
+      .dock.right .top {
+        justify-content: flex-end;
+      }
+      /* The note count follows the same edge, and sits closer to the list: the
+         footer had a border-top plus 8px padding on top of the stack's own 10px
+         bottom padding, which left a wide empty band above the count. */
+      .dock.right .foot {
+        justify-content: flex-end;
+      }
+      .dock.right .count {
+        flex: 0 0 auto;
+        text-align: right;
+      }
+      .foot {
+        padding-top: 2px;
+        border-top: 0;
+      }
+      .stack {
+        padding-bottom: 4px;
+      }
+      /* Cards grow leftward, away from the screen edge. */
+      .dock.right .tab {
+        padding: 10px 15px 10px 11px;
+      }
+      .dock.right .tab::before {
+        left: auto;
+        right: 6px;
+      }
+      .dock.right .search,
+      .dock.right .update {
+        text-align: right;
+      }
+      /* Clear-mode tiles are flush-left by default; on the right they sit flush
+         right so the column hugs the edge instead of leaving a gap on the
+         outer side. */
+      .dock.right.clear .stack {
+        padding: 6px 8px 24px 18px;
+        align-items: flex-end;
+      }
+      .dock.right.clear .tab {
+        padding: 10px 14px;
+      }
+
+      /* --- Clear-mode tiles -------------------------------------------
+         Compact coloured tiles that expand into a full card on hover, faithful
+         to the mockup: 76x62 collapsed, expanding to the full list width and
+         104px tall, with the text fading in and the colour spine removed. The
+         window is 320px (roomy) so three tiles fit per row and an expanded tile
+         has 294px — enough for the title and a two-line preview. */
+      .dock.clear .stack {
+        padding: 6px 18px 20px 8px;
+        /* 6px between tiles (was 10px): the column read as loose at nine+ notes. */
+        gap: 6px;
+        /* One note per row. A tile is a small square, so a row of them side by
+           side left a wide empty gap to the right of each and read as a
+           different app. Stacked, the column matches the other two modes and a
+           hovered tile expands across the full width in place. The base .stack
+           is already a column, so no flex-direction is needed here. */
+        align-items: flex-start;
+      }
+      .dock.clear .tab {
+        flex: 0 0 auto;
+        /* Override the card gradient with a solid note colour. Declared with
+           enough specificity to beat `.tab`'s own gradient. */
+        width: 76px;
+        height: 52px;
+        padding: 10px 14px;
+        border: 0;
+        border-radius: 15px;
+        /* Solid note colour with a light top edge — the mockup's tile fill. */
+        background: linear-gradient(
+          145deg,
+          var(--c, #8ec5e8),
+          color-mix(in srgb, var(--c, #8ec5e8) 80%, #fff)
+        );
+        box-shadow:
+          0 6px 18px rgba(0, 0, 0, 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        color: #1c1c22;
+        overflow: hidden;
+        transition:
+          width 0.26s cubic-bezier(0.2, 0.9, 0.25, 1.05),
+          height 0.26s cubic-bezier(0.2, 0.9, 0.25, 1.05),
+          box-shadow 0.2s;
+      }
+      /* The colour spine belongs to the card layouts; a solid tile has no use
+         for it. */
+      .dock.clear .tab::before {
+        display: none;
+      }
+      .dock.clear .tab:hover,
+      .dock.clear .tab:focus-visible {
+        width: 100%;
+        height: 88px;
+        transform: none;
+        box-shadow:
+          0 12px 28px rgba(0, 0, 0, 0.35),
+          inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      }
+      /* Text is hidden on the collapsed tile and fades in once expanded. */
+      .dock.clear .tab .title,
+      .dock.clear .tab .preview,
+      .dock.clear .tab .tabtime {
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
+      .dock.clear .tab:hover .title,
+      .dock.clear .tab:hover .preview,
+      .dock.clear .tab:hover .tabtime,
+      .dock.clear .tab:focus-visible .title,
+      .dock.clear .tab:focus-visible .preview,
+      .dock.clear .tab:focus-visible .tabtime {
+        opacity: 1;
+        transition: opacity 0.16s 0.1s;
+      }
+      .dock.clear .tab .preview {
+        color: rgba(28, 28, 34, 0.76);
+        /* The dock's typewriter reveal animates `width` and forces nowrap,
+           which would collapse the preview to a single clipped line inside a
+           76px tile. A collapsed tile shows no text anyway, so drop the
+           animation in this mode and keep the two-line clamp. */
+        animation: none;
+        white-space: normal;
+        border-right: 0;
+      }
+      .dock.clear .tab .tabtime {
+        color: rgba(28, 28, 34, 0.55);
+      }
+      /* A collapsed tile is a solid colour block, so the dark card text has to
+         stay readable on the lightest palette entries too. */
+      .dock.clear .tab .title {
+        color: #1c1c22;
+      }
+      .dock.clear .update {
+        background: rgba(18, 20, 30, 0.72);
+        border-color: rgba(255, 255, 255, 0.16);
+        color: #fff;
+      }
+      /* An update banner is a call to action, so it keeps its own contrast
+         against the light panel rather than blending into it. */
+
+
+
       /* --- Settings panel -------------------------------------------
          Opens over the note list in the same dock, as a sliding overlay, so
          the dock never grows a second window. */
@@ -380,6 +832,17 @@
         border-radius: 18px;
         overflow: hidden;
       }
+      /* Frosted is a light dock, so its settings panel follows rather than
+         opening as a dark slab over it. Still fully opaque — the note list sits
+         directly underneath, so translucency here makes the rows unreadable. */
+
+
+
+
+
+
+
+
       .sets.show {
         display: flex;
         animation: setsin 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
@@ -496,6 +959,16 @@
         background: rgba(255, 255, 255, 0.14);
         color: var(--ink);
       }
+      /* Three options do not fit on one line inside a 320px dock, so the wide
+         variant stretches and the buttons share the row evenly. */
+      .seg.wide {
+        display: flex;
+        width: 100%;
+      }
+      .seg.wide button {
+        flex: 1;
+        text-align: center;
+      }
       /* Toggle switch, from the mockup's .tog */
       .tog {
         flex: none;
@@ -553,7 +1026,28 @@
   <body>
     <main class="dock">
       <div class="top">
-        <input id="search" class="search" placeholder="Search notes…" /><button
+        <!-- Search is a toggle, not a permanent field: the top row carries three
+             glyphs only (search, add, menu) so the panel reads as a header rather
+             than a form. Clicking the magnifier reveals the field in place. -->
+        <!-- Collapsed: a bare magnifier glyph. Expanded: the same glyph sits
+             inside the field it opened, so the control never appears to vanish. -->
+        <div class="searchwrap" id="searchWrap">
+          <button
+            id="searchToggle"
+            class="search-btn search-toggle-inset"
+            title="Search notes"
+            aria-label="Search notes"
+            aria-expanded="false"
+            aria-controls="search"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </button>
+          <input id="search" class="search" placeholder="Search notes…" hidden />
+        </div>
+        <button
           id="new"
           class="button"
           title="New note"
@@ -562,40 +1056,53 @@
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-        </button
-        ><button
-          id="hide"
+        </button>
+        <button
+          id="menu"
           class="button"
-          title="Hide dock"
-          aria-label="Hide dock"
+          title="Menu"
+          aria-label="Menu"
+          aria-expanded="false"
+          aria-controls="menuPanel"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6" />
+            <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
-        </button
-        ><button
-          id="quit"
-          class="button quit"
-          title="Exit Tabbin"
-          aria-label="Exit Tabbin"
-        >
+        </button>
+      </div>
+      <!-- Overflow menu. Settings, hide and exit move in here so the top row stays
+           to three glyphs; each keeps the id its handler already used. -->
+      <div class="menu" id="menuPanel" hidden>
+        <button id="gear" class="mitem" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <!-- Clean stroked gear: a ring plus eight radial teeth. The previous
+                 path was a dense filled-outline cog that turned to mud at 16px. -->
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.7 6.7 5 5M19 19l-1.7-1.7M17.3 6.7 19 5M5 19l1.7-1.7" />
+          </svg>
+          <span>Settings</span>
+        </button>
+        <button id="hide" class="mitem" title="Hide dock" aria-label="Hide dock">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <!-- Two paths: the chevron points back toward the edge the dock hides
+                 into, so it flips with the same `.right` class that flips the
+                 layout. Pure CSS beats rewriting the DOM on every edge change. -->
+            <path class="chev chev-l" d="M15 18l-6-6 6-6" />
+            <path class="chev chev-r" d="M9 18l6-6-6-6" />
+          </svg>
+          <span>Hide dock</span>
+        </button>
+        <button id="quit" class="mitem quit" title="Exit Tabbin" aria-label="Exit Tabbin">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 6l12 12M18 6 6 18" />
           </svg>
+          <span>Exit Tabbin</span>
         </button>
       </div>
       <div id="stack" class="stack"></div>
       <div id="update" class="update" hidden></div>
       <div class="foot">
-        <span class="count" id="noteCount"></span
-        ><button id="feedback" title="Send feedback">Send feedback</button
-        ><button id="gear" class="button" title="Settings" aria-label="Settings">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-          </svg>
-        </button
-        ><span class="version" id="appVersion"></span>
+        <span class="count" id="noteCount"></span>
       </div>
 
       <!-- Settings opens over the note list inside this same dock window, so the
@@ -620,6 +1127,16 @@
               <button data-v="right">Right</button>
             </div>
           </div>
+          <div class="srow col">
+            <div>
+              <b>Dock background</b><small>Clear is coloured tiles. Glass adds a panel. Bare drops the panel but keeps the cards.</small>
+            </div>
+            <div class="seg wide" data-s="dockBg">
+              <button data-v="clear">Clear</button>
+              <button data-v="glass">Glass</button>
+              <button data-v="bare">Bare</button>
+            </div>
+          </div>
           <div class="srow">
             <div>
               <b>Auto-hide</b><small>Tuck the dock away when you leave it</small>
@@ -634,6 +1151,13 @@
               <button data-v="compact">Compact</button>
               <button data-v="roomy">Roomy</button>
             </div>
+          </div>
+          <h4>App</h4>
+          <div class="srow">
+            <div>
+              <b>Launch Tabbin on Startup</b><small>Open Tabbin automatically when you sign in to Windows</small>
+            </div>
+            <button class="tog" role="switch" data-s="launchOnStartup" aria-label="Launch Tabbin on Startup"></button>
           </div>
           <h4>Files</h4>
           <div class="srow" id="saveLocRow">
@@ -655,7 +1179,10 @@
           </div>
         </div>
         <div class="sfoot">
-          <span id="sVersion"></span>
+          <!-- Version and feedback moved out of the dock footer into Settings, so
+               the bottom of the dock carries only the note count. -->
+          <button id="feedback" class="sfoot-link" title="Send feedback">Send feedback</button>
+          <span class="version" id="appVersion"></span>
           <button id="reset">Reset</button>
         </div>
       </section>
@@ -824,7 +1351,121 @@
           stack.appendChild(el);
         });
       }
+      // Report how tall the note list wants to be so the main process can size
+      // and centre the dock. The measurement must be taken with the five-note cap
+      // lifted, otherwise scrollHeight is already clamped and the window would
+      // always shrink to a single screenful. rAF defers it until after layout.
+      let lastReportedHeight = 0;
+      // How many notes each mode shows at once. The window is sized to exactly
+      // these and the rest are reachable by scrolling, so this is the single knob.
+      //
+      // Clear shows six tiles and glass/bare show four cards, chosen so the dock
+      // barely changes height between modes:
+      //     6 tiles x 52px + 5 x 6px gap = 342px
+      //     4 cards x ~80px + 3 x 7px gap = 340px
+      // A 2px difference, so switching modes does not make the dock jump. The
+      // card height is content-driven, so this balance holds closely rather than
+      // exactly as content changes.
+      const VISIBLE_BY_MODE = { clear: 6, glass: 4, bare: 4 };
+      const DEFAULT_VISIBLE = 4;
+      function visibleCount() {
+        // Apply the class to a detached element so reading it never mutates the
+        // live dock's class list mid-measurement.
+        const mode = root.classList.contains("glass")
+          ? "glass"
+          : root.classList.contains("bare")
+            ? "bare"
+            : "clear";
+        return VISIBLE_BY_MODE[mode] || DEFAULT_VISIBLE;
+      }
+      // Height of the first VISIBLE_COUNT cards including the gaps between them.
+      // Measured, never guessed: cards are content-driven, so a hard-coded pixel
+      // cap fits a different number of notes at every content length.
+      function measureListCap() {
+        const stack = document.querySelector("#stack");
+        if (!stack) return null;
+        const cards = stack.querySelectorAll(":scope > .tab");
+        if (!cards.length) return null;
+        const gap = parseFloat(getComputedStyle(stack).rowGap) || 0;
+        const n = Math.min(visibleCount(), cards.length);
+        let h = 0;
+        for (let i = 0; i < n; i += 1) {
+          h += cards[i].getBoundingClientRect().height;
+          if (i > 0) h += gap;
+        }
+        return Math.ceil(h);
+      }
+      function reportHeight() {
+        const stack = document.querySelector("#stack");
+        if (!stack) return;
+        // Read the cap FIRST, while the element is untouched. Reading computed
+        // style in the same tick as an inline max-height mutation returns the
+        // mutated value, which made capPx NaN and sent the full height of every
+        // note instead of the five-note window.
+        // Re-measure and write the real five-card height onto the element, so the
+        // stylesheet cap and the window height come from one source of truth.
+        const measured = measureListCap();
+        if (measured) stack.style.maxHeight = measured + "px";
+        const raw = getComputedStyle(stack).maxHeight;
+        const capPx = parseFloat(raw);
+        const capped = Number.isFinite(capPx);
+        // Now measure the natural height with the cap lifted.
+        const prev = stack.style.maxHeight;
+        stack.style.maxHeight = "none";
+        const natural = stack.scrollHeight;
+        stack.style.maxHeight = prev;
+        const wanted = capped ? Math.min(natural, capPx) : natural;
+        const rounded = Math.round(wanted);
+        if (Math.abs(rounded - lastReportedHeight) < 4) return;
+        lastReportedHeight = rounded;
+        window.tabbin.reportContentHeight(rounded);
+      }
+      function scheduleReport() {
+        if (reportHeight.queued) return;
+        reportHeight.queued = true;
+        requestAnimationFrame(() => {
+          reportHeight.queued = false;
+          reportHeight();
+        });
+      }
       search.oninput = render;
+      // Search is opt-in: the magnifier reveals the field and focuses it, Escape or
+      // the close glyph puts it away again so the header stays three glyphs.
+      const searchToggle = document.querySelector("#searchToggle");
+      const searchWrap = document.querySelector("#searchWrap");
+      const menuBtn = document.querySelector("#menu");
+      const menuPanel = document.querySelector("#menuPanel");
+      function closeSearch() {
+        searchWrap.classList.remove("open");
+        search.hidden = true;
+        searchToggle.setAttribute("aria-expanded", "false");
+        search.value = "";
+        render();
+      }
+      function openSearch() {
+        searchWrap.classList.add("open");
+        search.hidden = false;
+        searchToggle.setAttribute("aria-expanded", "true");
+        search.focus();
+      }
+      function closeMenu() {
+        menuPanel.hidden = true;
+        menuBtn.setAttribute("aria-expanded", "false");
+      }
+      function toggleMenu() {
+        const open = menuPanel.hidden;
+        menuPanel.hidden = !open;
+        menuBtn.setAttribute("aria-expanded", String(open));
+      }
+      searchToggle.onclick = () => (searchWrap.classList.contains("open") ? closeSearch() : openSearch());
+      menuBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleMenu();
+      };
+      // Clicking anywhere else dismisses the menu, including the dock background.
+      root.addEventListener("click", () => {
+        if (!menuPanel.hidden) closeMenu();
+      });
       document.querySelector("#new").onclick = () => window.tabbin.create();
       document.querySelector("#hide").onclick = (e) => {
         e.stopPropagation();
@@ -836,8 +1477,19 @@
       root.addEventListener("mouseleave", () => window.tabbin.cursorLeft());
       // Ctrl K focuses search and Escape clears it, both from the mockup.
       document.addEventListener("keydown", (e) => {
+        // Escape closes the menu first, then the search field, so it always undoes
+        // the most recently opened layer rather than only the field.
+        if (e.key === "Escape" && !menuPanel.hidden) {
+          closeMenu();
+          return;
+        }
+        if (e.key === "Escape" && searchWrap.classList.contains("open")) {
+          closeSearch();
+          return;
+        }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
           e.preventDefault();
+          openSearch();
           search.focus();
           search.select();
         } else if (e.key === "Escape" && document.activeElement === search) {
@@ -851,13 +1503,26 @@
       // persisted through the main process so the dock re-lays out immediately.
       const sets = document.querySelector("#sets"),
         sVersion = document.querySelector("#sVersion");
-      let cfg = { edge: "left", edgeHover: true, dockWidth: "roomy", saveLocation: "same" };
+      let cfg = {
+        edge: "left",
+        edgeHover: true,
+        dockWidth: "compact",
+        // Requested default. Existing installs fall back to this when their
+        // config predates the setting, so upgrading changes their dock — that is
+        // the intent, and Settings can put it back to glass in one click.
+        dockBg: "clear",
+        saveLocation: "same",
+      };
       // The main process owns these values and re-lays out the window, so the
       // renderer only mirrors them. No renderer-side blur or palette swatches:
       // those controls were removed so the settings surface stays legible and
       // the new-note colour stays a note-window affordance only.
       function applyCfg() {
         root.classList.toggle("right", cfg.edge === "right");
+        // Exactly one background mode class at a time. The other two are removed
+        // explicitly so switching modes cannot leave a stale tint behind.
+        root.classList.remove("clear", "glass", "bare");
+        root.classList.add(cfg.dockBg === "glass" || cfg.dockBg === "bare" ? cfg.dockBg : "clear");
         document.querySelectorAll(".seg[data-s]").forEach((seg) => {
           const key = seg.dataset.s;
           seg.querySelectorAll("button").forEach((btn) => {
@@ -868,6 +1533,10 @@
           tog.setAttribute("aria-checked", String(!!cfg[tog.dataset.s]));
         });
         updateSaveLocationLabel();
+        // The mode decides how many notes fit, so a mode change invalidates both
+        // the list cap and the window height. A class change alone does not
+        // resize #stack reliably, so request the re-measure explicitly.
+        if (typeof scheduleReport === "function") scheduleReport();
       }
       async function patchCfg(patch) {
         cfg = await window.tabbin.setConfig(patch);
@@ -905,8 +1574,10 @@
         cfg = await window.tabbin.setConfig({
           edge: "left",
           edgeHover: true,
-          dockWidth: "roomy",
+          dockWidth: "compact",
+          dockBg: "clear",
           saveLocation: "same",
+          launchOnStartup: false,
         });
         applyCfg();
       };
@@ -922,9 +1593,19 @@
           if (result && result.cleared !== undefined) sets.classList.remove("show");
         }
       };
+      // Set once config and notes have both arrived. Measuring before that
+      // produces an empty-list height with no mode class applied, and caching it
+      // prevents the window from ever resizing to the real content.
+      let ready = false;
+      function markReady() {
+        if (ready) return;
+        ready = true;
+        scheduleReport();
+      }
       window.tabbin.config().then((c) => {
         cfg = { ...cfg, ...c };
         applyCfg();
+        if (notes.length) markReady();
       });
       window.tabbin.onConfigChanged((c) => {
         cfg = { ...cfg, ...c };
@@ -937,7 +1618,16 @@
       window.tabbin.list().then((x) => {
         notes = x;
         render();
+        markReady();
       });
+      // A ResizeObserver catches the height changing for any reason (note added,
+      // removed, reordered, dock mode switched) without every call site having to
+      // remember to report.
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => {
+          if (ready) scheduleReport();
+        }).observe(document.querySelector("#stack"));
+      }
       window.tabbin.onUpdateState(renderUpdate);
       // Pull as well as subscribe: an update can be discovered before this
       // renderer finishes loading, and a push-only listener would miss it.
