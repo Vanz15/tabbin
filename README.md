@@ -18,18 +18,20 @@ it. Notes open in native-resizable windows with rich-text editing, and tabs
 reorder by dragging.
 
 > [!NOTE]
-> **v2.0.0** replaces the dock and note UI with a frosted-glass design, sized so
-> the redesign is obvious next to v1.x. **v1.0.1** remains available on the
-> releases page if you prefer the older tab-based dock.
+> **v2.1.0** adds three selectable dock appearances, a settings panel, and
+> right-edge docking. **v1.0.1** remains available on the releases page if you
+> prefer the older tab-based dock.
 
 ## Features
 
-- **Frosted-glass dock** — translucent dark panel with a rounded edge, always on top, auto-hiding until you hover the screen edge
-- **Full-width note cards** — title, preview and relative timestamp visible at rest, each tinted by the note colour with a matching spine on the leading edge
+- **Three dock appearances** — pick clear (coloured tiles, no panel), glass (tiles behind a near-opaque panel), or bare (tiles with no panel at all)
+- **Settings panel** — dock side, background, auto-hide, dock width, launch-on-startup, save location, and clear-all-notes, behind one menu
+- **Right-edge docking** — the layout mirrors, so notes grow away from the edge and the header aligns to it
+- **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
+- **Concise header** — search, add, and menu; search expands in place when you want it
+- **Full-width note cards** — title, preview and relative timestamp visible at rest, each tinted by the note colour with a matching spine
 - **Bundled Geist typeface** — no CDN fetch at runtime, so the UI renders identically offline
 - **Rethemed note window** — custom chrome with the Tabbin mark, per-note colour dots, active-formatting highlight, and a word count
-- **Always-visible search** — `Ctrl K` focuses it, `Escape` clears it
-- **Thin scrollbar** — a faint 8px bar rather than a hidden one
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks
 - **Drag to reorder** — rearrange note cards by dragging them within the dock
@@ -53,12 +55,23 @@ Pre-built binaries for Windows (x64) are on the [releases page](https://github.c
 ### Using it
 
 1. Launch the executable. A splash screen (~900ms) fades to the dock.
-2. The dock sits on the **left edge** of your primary display.
-3. **Hover a card** to highlight it; **click** to open the full note window.
-4. Move the pointer away and the dock hides after 400ms.
+2. **Hover the screen edge** to bring the dock out.
+3. The header holds three icons: **search**, **add**, and **menu**. Search
+   expands in place; click the magnifier again or press `Escape` to close it.
+4. The **menu** opens Settings, Hide dock, and Exit.
+5. **Click a card** to open the full note window.
+6. Move the pointer away and the dock hides after 400ms.
 
 First run creates three notes: **Welcome to Tabbin** (instructions), **Ideas**,
 and **Today** (a task list).
+
+The dock shows six tiles in clear mode, or four cards in glass and bare, and
+scrolls beyond that. It is sized to fit and centred vertically, so switching
+appearance does not change its height much.
+
+Everything above is adjustable from the menu: dock side, appearance, auto-hide,
+dock width (**compact** 268px, the default, or **roomy** 320px), launch-on-startup,
+save location, and clearing all notes.
 
 The dock's bottom status row reports update state — available, download
 progress, restart to install, or a retry option after a failure. It stays
@@ -87,11 +100,19 @@ npm test
 | `test_v2_features.js` | Rich-text commands, drag reorder, resizing, pinning, installer config |
 | `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
 | `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
+| `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
+| `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values |
+| `test_save_location.js` | Save folder resolution, validation, and note migration |
 
-These run on plain Node with no dependencies. Most assert on the *text* of
-source files, which catches regressions but is not behavioral coverage. The
-updater suites are the exception: `updater-state.js` is a pure module and the
-checksum guard is imported directly, so both are genuinely exercised.
+These run on plain Node with no dependencies. Many assert on the *text* of
+source files, which catches regressions but is not behavioral coverage. Two
+suites genuinely execute code: `updater-state.js` is a pure module and the
+checksum guard is imported directly.
+
+`test_v2_features.js` also parses the dock renderer and checks stylesheet brace
+balance, markup nesting, and settings-row structure. Those guards exist because
+a dropped brace or a missing `</div>` renders an empty dock or a sideways
+settings panel while every content assertion still passes.
 
 ### Verifying a release
 
@@ -123,7 +144,7 @@ Upload the feed **last**, and do not replace assets on a published release.
 | `updater.js` | Update wiring — electron-updater events, build guards, re-check cadence, file logging |
 | `updater-state.js` | Pure update state machine (no Electron imports), so transitions are unit testable |
 | `preload.js` | Context bridge exposing `window.tabbin`; context isolation on, `nodeIntegration` off |
-| `dock.html` | Dock renderer — transparent overlay, tabs, search, update row |
+| `dock.html` | Dock renderer — transparent overlay, note cards, header, overflow menu, settings panel, update row |
 | `note.html` | Note editor — contenteditable with rich-text toolbar and pin toggle |
 | `loading.html` | Splash screen |
 | `scripts/verify-feed.js` | Release-time feed and checksum verification |
@@ -151,8 +172,11 @@ build or an unpackaged dev run, so a test can never replace a real install.
 | `remove(id)` | Delete a note |
 | `open(id)` | Open a note window |
 | `hide()` / `cursorLeft()` | Hide the dock, or arm its hide timer |
+| `reportContentHeight(h)` | Tell the main process how tall the note list is, so the window can hug and centre it |
 | `quit()` | Quit the app |
-| `config()` | Dock configuration |
+| `config()` / `setConfig(patch)` | Read or change dock configuration |
+| `pickFolder()` | Choose a save location |
+| `clear(confirm)` | Delete every note |
 | `toggleNoteAlwaysOnTop(id)` | Pin a note |
 | `updateStatus()` | Current update snapshot |
 | `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` | Drive an update |
@@ -166,7 +190,7 @@ Stored in the Electron user data directory (`app.getPath('userData')`):
 | File | Contents |
 |---|---|
 | `notes.json` | Notes — id, title, content, color, pinning, timestamp |
-| `config.json` | Dock `edge` (left/right), `edgeHover`, note window `noteWidth`/`noteHeight` |
+| `config.json` | Dock `edge` (left/right), `dockBg` (clear/glass/bare), `dockWidth` (compact/roomy), `edgeHover`, `launchOnStartup`, `saveLocation`, note window `noteWidth`/`noteHeight` |
 | `update-state.json` | Last check timestamp, portable-notice dismissal |
 | `update.log` | Updater diagnostics, since packaged Windows builds discard stdout |
 | `crash.log` | Uncaught exceptions and unhandled rejections |
