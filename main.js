@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu, dialog } = require('electron');
 const updater = require('./updater');
 const path = require('path');
 const fs = require('fs');
@@ -36,7 +36,16 @@ if (!hasSingleInstanceLock) {
 
 const appIcon = () => path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const configFile = () => userDataFile('config.json');
-const dataFile = () => userDataFile('notes.json');
+// Notes live beside Tabbin's other userData by default. When Settings picks a
+// folder, notes.json lives there instead — so this resolves on every call rather
+// than caching one path at startup, otherwise a folder change would keep writing
+// to the old location for the rest of the session.
+function notesDir() {
+  const configured = loadConfig().saveLocation;
+  if (!configured || configured === 'same') return app.getPath('userData');
+  return configured;
+}
+const dataFile = () => path.join(notesDir(), 'notes.json');
 // Frosted-glass palette from the design mockup. These supersede the original
 // six flat tab colours, which were picked for opaque tabs and read as harsh
 // against a dark translucent surface. Passed to note.html via the load query so
@@ -47,7 +56,7 @@ const seed = [
   { id: 'ideas', title: 'Ideas', content: 'Capture ideas quickly, then keep working without losing your train of thought.', color: '#9CCFA5', updatedAt: Date.now() - 1000 },
   { id: 'tasks', title: 'Today', content: '• Clear pending tasks\n• Hit the gym\n• Rest and recharge', color: '#F2A38F', updatedAt: Date.now() - 2000 }
 ];
-const defaultConfig = { edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430 };
+const defaultConfig = { edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430, dockWidth: 'roomy', saveLocation: 'same' };
 
 function hexToRgb(hex) {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
@@ -91,6 +100,40 @@ function saveConfig(config) {
   return config;
 }
 
+// A chosen save folder has to be an absolute, writable directory. Rejecting
+// anything else here stops a bad value from silently stranding every later save.
+function isValidSaveDir(dir) {
+  if (dir === 'same') return true;
+  if (typeof dir !== 'string' || !dir.trim() || !path.isAbsolute(dir)) return false;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Changing the save folder is a real data move: carry notes.json (and its
+// backup) across so the user's notes do not appear to vanish. Never clobbers a
+// notes.json that already exists at the destination.
+function migrateNotesDir(from, to) {
+  if (!to || to === 'same') return;
+  const source = from && from !== 'same'
+    ? path.join(from, 'notes.json')
+    : path.join(app.getPath('userData'), 'notes.json');
+  try {
+    fs.mkdirSync(to, { recursive: true });
+    const dest = path.join(to, 'notes.json');
+    if (!fs.existsSync(source) || fs.existsSync(dest)) return;
+    fs.copyFileSync(source, dest);
+    if (fs.existsSync(source + '.bak')) fs.copyFileSync(source + '.bak', dest + '.bak');
+    console.log('[Tabbin] Moved notes to', to);
+  } catch (err) {
+    console.log('[Tabbin] Could not move notes to', to, '-', err.message);
+  }
+}
+
 // Load notes with backup fallback: primary → .bak → seed
 function loadNotes() {
   try { return JSON.parse(fs.readFileSync(dataFile(), 'utf8')); }
@@ -131,14 +174,13 @@ function layout() {
   if (!dock || dock.isDestroyed()) return;
   const display = screen.getPrimaryDisplay();
   const config = loadConfig();
-  // Frosted-glass dock width, matching the mockup's `.dock`
-  // (min(320px, calc(100vw - 28px))). Sized for reading a full note card
-  // rather than a hover preview.
-  const fullWidth = 320;
-  // Collapsed dock is a plain sliver: the mockup's coloured edge pills were
-  // tried here and removed, because they sit in the left margin and obstruct
-  // normal scrolling. Nothing is drawn while collapsed.
-  const hiddenWidth = 10;
+    // Dock width. 'roomy' matches the design mockup's 320px; 'compact' fits more
+    // on small screens. Users pick this in Settings.
+    const fullWidth = config.dockWidth === 'compact' ? 268 : 320;
+    // Collapsed dock is a plain sliver. The mockup's coloured edge pills were
+    // tried here and removed, because they sit in the left margin and obstruct
+    // normal scrolling. Nothing is drawn while collapsed.
+    const hiddenWidth = 10;
   const height = Math.min(760, display.workAreaSize.height - 120);
   const y = display.workArea.y + 80;
   const width = ['revealed', 'revealing', 'hiding'].includes(dockState) ? fullWidth : hiddenWidth;
@@ -260,13 +302,13 @@ function openNote(id) {
     // (it only drops the Win32 resize frame, not resize support).
     frame: false, thickFrame: false, titleBarStyle: 'hidden',
     movable: true, maximizable: true, alwaysOnTop: !!note?.alwaysOnTop, title: 'Tabbin Note',
-    // Opaque dark base. A frameless window with an alpha-0 background but no
-    // `transparent: true` makes Chromium allocate an uninitialised (white)
-    // buffer for invalidated regions; the glass then paints over it a frame
-    // later, which reads as a white box and ghosted text while typing. An
-    // opaque base keeps the surface fully defined, and note.html still paints
-    // the glass tint and note gradient on top, so the design is unchanged.
-    backgroundColor: '#18181b',
+    // Frameless + transparent so the CSS clip-path and colour spine genuinely
+    // reach the rounded corners against the desktop. The white-box/ghosting
+    // regression that an earlier opaque base guarded against is handled in
+    // note.html instead (the page paints an opaque gradient over the whole
+    // .wrap, so there is no uninitialised region for Chromium to leave white).
+    transparent: true,
+    backgroundColor: '#00000000',
     icon: appIcon(),
     autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
@@ -304,7 +346,27 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('app:quit', () => app.quit());
-ipcMain.handle('config:get', () => loadConfig());
+ipcMain.handle('config:get', () => ({ ...loadConfig(), palette, notesPath: dataFile() }));
+// Settings persist immediately and re-layout the dock, so a change to the
+// activation edge or width is visible without a restart.
+ipcMain.handle('config:set', (_, patch) => {
+  const current = loadConfig();
+  const next = { ...current, ...patch };
+  // A save folder is the one setting that can break every subsequent save, so
+  // it is validated before it is written and the old value survives a bad pick.
+  if ('saveLocation' in patch && !isValidSaveDir(patch.saveLocation)) {
+    console.log('[Tabbin] Rejected invalid save location:', patch.saveLocation);
+    return current;
+  }
+  if (patch.saveLocation && patch.saveLocation !== current.saveLocation) {
+    migrateNotesDir(notesDir(), patch.saveLocation);
+  }
+  saveConfig(next);
+  layout();
+  // The renderer mirrors the edge with a class, so it has to be told.
+  if (dock && !dock.isDestroyed()) dock.webContents.send('config:changed', next);
+  return next;
+});
 ipcMain.handle('updates:status', () => updater.snapshot());
 ipcMain.handle('updates:check', () => updater.check());
 ipcMain.handle('updates:download', () => updater.download());
@@ -313,7 +375,11 @@ ipcMain.handle('updates:dismiss-nudge', () => updater.dismissNudge());
 ipcMain.handle('notes:list', () => loadNotes().sort((a, b) => b.updatedAt - a.updatedAt));
 ipcMain.handle('notes:create', () => {
   const notes = loadNotes();
-  const note = { id: crypto.randomUUID(), title: 'Untitled note', content: '', color: palette[notes.length % palette.length], updatedAt: Date.now() };
+  // New notes rotate through the palette so successive notes are visually distinct.
+  // The old "New note color" settings choice was removed — set the colour from the
+  // note window's colour dots after creating the note instead.
+  const color = palette[notes.length % palette.length];
+  const note = { id: crypto.randomUUID(), title: 'Untitled note', content: '', color, updatedAt: Date.now() };
   notes.unshift(note); saveNotes(notes); broadcast('notes:changed', notes); openNote(note.id); return note;
 });
 ipcMain.handle('notes:get', (_, id) => loadNotes().find(note => note.id === id));
@@ -348,5 +414,29 @@ ipcMain.handle('notes:toggle-always-on-top', async (_, id) => {
   broadcast('notes:changed', notes);
   return notes[index];
 });
+// Clear every note at once (Settings "Clear all notes"). Backed up first so
+// a single accidental tap cannot wipe the file irrecoverably.
+ipcMain.handle('notes:clear', async (_, confirm) => {
+  if (confirm !== true) return { aborted: true };
+  const notes = loadNotes();
+  const backup = dataFile() + '.bak';
+  try { fs.copyFileSync(dataFile(), backup); } catch { /* ignore missing */ }
+  saveNotes([]);
+  for (const window of noteWindows.values()) {
+    if (!window.isDestroyed()) window.close();
+  }
+  broadcast('notes:changed', []);
+  return { cleared: notes.length };
+});
 ipcMain.handle('dock:hide', () => hideDock());
 ipcMain.handle('dock:cursor-left', () => scheduleHide());
+// Folder picker for the Settings "Save location" row. Returns the chosen
+// absolute path, or null if the user cancels. Persists via config:set.
+ipcMain.handle('dialog:browse-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createPrompt'],
+    title: 'Choose where new notes are saved',
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+});

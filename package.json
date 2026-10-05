@@ -8,7 +8,7 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "test": "node test_sticky_dock.js && node test_v2_features.js && node test_updater.js && node test_release_body_checksums.js && node test_palette_migration.js && node test_editor_repaint.js",
+    "test": "node test_sticky_dock.js && node test_v2_features.js && node test_updater.js && node test_release_body_checksums.js && node test_palette_migration.js && node test_editor_repaint.js && node test_save_location.js",
     "verify:feed": "node scripts/verify-feed.js",
     "build:win": "electron-builder --win portable nsis --x64",
     "build:mac": "electron-builder --mac dmg zip",

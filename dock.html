@@ -364,14 +364,190 @@
           width: 100%;
         }
       }
-      @media (prefers-reduced-motion: reduce) {
-        .typewriter {
-          animation: none;
+      /* --- Settings panel -------------------------------------------
+         Opens over the note list in the same dock, as a sliding overlay, so
+         the dock never grows a second window. */
+      .sets {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        display: none;
+        flex-direction: column;
+        /* Fully opaque on purpose. The settings panel sits directly over the
+           note list, so a translucent background made every row unreadable with
+           the cards showing through. */
+        background: #141417;
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .sets.show {
+        display: flex;
+        animation: setsin 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
+      }
+      @keyframes setsin {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
         }
-        .tab {
-          transition: none;
+        to {
+          opacity: 1;
+          transform: none;
         }
       }
+      .shead {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px 8px;
+      }
+      .shead h2 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .sbody {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 16px 12px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
+      .sbody::-webkit-scrollbar {
+        width: 8px;
+      }
+      .sbody::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+      }
+      .sbody h4 {
+        margin: 14px 0 2px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink3);
+      }
+      .srow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .srow.col {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .srow b {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .srow small {
+        display: block;
+        margin-top: 2px;
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: var(--ink3);
+      }
+      /* A Windows save path is far too long for a 320px row: left unbounded it
+         wraps to four lines and shoves the folder button out of alignment. Show
+         one truncated line, keep the full path in the tooltip. */
+      #saveLocRow > div {
+        min-width: 0;
+      }
+      #saveLocLabel {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+      }
+      /* Segmented control, from the mockup's .seg */
+      .seg {
+        display: flex;
+        flex: none;
+        padding: 2px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .seg button {
+        border: 0;
+        padding: 5px 11px;
+        border-radius: 7px;
+        background: none;
+        color: var(--ink2);
+        font: 500 12px var(--font);
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .seg button:hover {
+        color: var(--ink);
+      }
+      .seg button[aria-pressed="true"] {
+        background: rgba(255, 255, 255, 0.14);
+        color: var(--ink);
+      }
+      /* Toggle switch, from the mockup's .tog */
+      .tog {
+        flex: none;
+        position: relative;
+        width: 42px;
+        height: 24px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .tog::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.25, 1.05);
+      }
+      .tog[aria-checked="true"] {
+        background: var(--accent);
+      }
+      .tog[aria-checked="true"]::after {
+        transform: translateX(18px);
+      }
+      .sfoot {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 9px 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 11px;
+        color: var(--ink3);
+      }
+      .sfoot button {
+        border: 0;
+        padding: 2px 0;
+        background: none;
+        color: var(--ink2);
+        font: 11px var(--font);
+        cursor: pointer;
+      }
+      .sfoot button:hover {
+        color: var(--ink);
+      }
+
     </style>
   </head>
   <body>
@@ -413,8 +589,76 @@
       <div class="foot">
         <span class="count" id="noteCount"></span
         ><button id="feedback" title="Send feedback">Send feedback</button
+        ><button id="gear" class="button" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
+        </button
         ><span class="version" id="appVersion"></span>
       </div>
+
+      <!-- Settings opens over the note list inside this same dock window, so the
+           dock never needs a second window. -->
+      <section class="sets" id="sets" aria-label="Settings">
+        <div class="shead">
+          <button id="sback" class="button" title="Back to notes" aria-label="Back to notes">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <h2>Settings</h2>
+        </div>
+        <div class="sbody">
+          <h4>Dock</h4>
+          <div class="srow">
+            <div>
+              <b>Dock side</b><small>Which screen edge the dock sticks to</small>
+            </div>
+            <div class="seg" data-s="edge">
+              <button data-v="left">Left</button>
+              <button data-v="right">Right</button>
+            </div>
+          </div>
+          <div class="srow">
+            <div>
+              <b>Auto-hide</b><small>Tuck the dock away when you leave it</small>
+            </div>
+            <button class="tog" role="switch" data-s="edgeHover" aria-label="Auto-hide"></button>
+          </div>
+          <div class="srow">
+            <div>
+              <b>Dock width</b><small>Compact fits more on small screens</small>
+            </div>
+            <div class="seg" data-s="dockWidth">
+              <button data-v="compact">Compact</button>
+              <button data-v="roomy">Roomy</button>
+            </div>
+          </div>
+          <h4>Files</h4>
+          <div class="srow" id="saveLocRow">
+            <div>
+              <b>Save location</b><small id="saveLocLabel"></small>
+            </div>
+            <button id="saveLocBtn" class="button" title="Choose save location" aria-label="Choose save location">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+            </button>
+          </div>
+          <h4>Notes</h4>
+          <div class="srow">
+            <div>
+              <b>Clear all notes</b><small>Deletes every note. Cannot be undone</small>
+            </div>
+            <button id="clearAll" class="button quit" title="Clear all notes" aria-label="Clear all notes">
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="sfoot">
+          <span id="sVersion"></span>
+          <button id="reset">Reset</button>
+        </div>
+      </section>
     </main>
     <script>
       let notes = [],
@@ -601,6 +845,90 @@
           render();
           search.blur();
         }
+      });
+      // --- Settings -------------------------------------------------
+      // Opens as an overlay inside this dock, not a second window. Values are
+      // persisted through the main process so the dock re-lays out immediately.
+      const sets = document.querySelector("#sets"),
+        sVersion = document.querySelector("#sVersion");
+      let cfg = { edge: "left", edgeHover: true, dockWidth: "roomy", saveLocation: "same" };
+      // The main process owns these values and re-lays out the window, so the
+      // renderer only mirrors them. No renderer-side blur or palette swatches:
+      // those controls were removed so the settings surface stays legible and
+      // the new-note colour stays a note-window affordance only.
+      function applyCfg() {
+        root.classList.toggle("right", cfg.edge === "right");
+        document.querySelectorAll(".seg[data-s]").forEach((seg) => {
+          const key = seg.dataset.s;
+          seg.querySelectorAll("button").forEach((btn) => {
+            btn.setAttribute("aria-pressed", String(cfg[key] === btn.dataset.v));
+          });
+        });
+        document.querySelectorAll(".tog[data-s]").forEach((tog) => {
+          tog.setAttribute("aria-checked", String(!!cfg[tog.dataset.s]));
+        });
+        updateSaveLocationLabel();
+      }
+      async function patchCfg(patch) {
+        cfg = await window.tabbin.setConfig(patch);
+        applyCfg();
+        return cfg;
+      }
+      // Show the folder notes are actually saved in right now. The main process
+      // resolves it per call (notesDir in main.js), so this is the live path, not
+      // a stored preference — which is what makes it useful after a folder change.
+      function updateSaveLocationLabel() {
+        const label = document.querySelector("#saveLocLabel");
+        const path = cfg.notesPath || "Unknown location";
+        // direction:rtl in CSS keeps the folder NAME visible when the line is
+        // truncated, which is the part a user actually recognises.
+        label.textContent = path;
+        label.title = path;
+        document.querySelector("#saveLocRow").title = path;
+      }
+      document.querySelector("#gear").onclick = () => {
+        sets.classList.add("show");
+        render();
+      };
+      document.querySelector("#sback").onclick = () => sets.classList.remove("show");
+      document.querySelectorAll(".seg[data-s]").forEach((seg) => {
+        seg.onclick = (e) => {
+          const btn = e.target.closest("button[data-v]");
+          if (!btn) return;
+          patchCfg({ [seg.dataset.s]: btn.dataset.v });
+        };
+      });
+      document.querySelectorAll(".tog[data-s]").forEach((tog) => {
+        tog.onclick = () => patchCfg({ [tog.dataset.s]: !cfg[tog.dataset.s] });
+      });
+      document.querySelector("#reset").onclick = async () => {
+        cfg = await window.tabbin.setConfig({
+          edge: "left",
+          edgeHover: true,
+          dockWidth: "roomy",
+          saveLocation: "same",
+        });
+        applyCfg();
+      };
+      document.querySelector("#saveLocBtn").onclick = async () => {
+        const dir = await window.tabbin.pickFolder();
+        if (!dir) return;
+        cfg = await window.tabbin.setConfig({ saveLocation: dir });
+        applyCfg();
+      };
+      document.querySelector("#clearAll").onclick = async () => {
+        if (confirm("Delete all " + (notes.length) + " notes? This cannot be undone.")) {
+          const result = await window.tabbin.clear(true);
+          if (result && result.cleared !== undefined) sets.classList.remove("show");
+        }
+      };
+      window.tabbin.config().then((c) => {
+        cfg = { ...cfg, ...c };
+        applyCfg();
+      });
+      window.tabbin.onConfigChanged((c) => {
+        cfg = { ...cfg, ...c };
+        applyCfg();
       });
       window.tabbin.onChanged((x) => {
         notes = x;

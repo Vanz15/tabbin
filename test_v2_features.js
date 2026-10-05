@@ -43,8 +43,71 @@ assert.doesNotMatch(main, /'dock:state'/, 'no dock-state channel needed without 
 assert.doesNotMatch(preload, /onDockState/);
 // The collapsed dock stays a plain sliver at its original width.
 assert.match(main, /const hiddenWidth = 10;/);
-assert.doesNotMatch(dock, /id="settings"/);
-assert.doesNotMatch(dock, /id="pin"/);
+// Settings now exists as an overlay inside the dock. It must stay a section in
+// dock.html, NOT a second BrowserWindow: the whole point is that opening
+// settings never spawns another window.
+assert.match(dock, /id="sets"/);
+assert.match(dock, /id="gear"/);
+assert.doesNotMatch(
+  main,
+  /settings\.html/,
+  'settings must be an overlay in dock.html, not a separate window',
+);
+assert.doesNotMatch(main, /createSettingsWindow/);
+// A configurable activation edge: the main process owns the value and re-lays
+// out so the change applies without a restart.
+assert.match(main, /ipcMain\.handle\('config:set'/);
+// config:set merges the patch over the stored config. It is now split across two
+// statements so an invalid save folder can be rejected before anything is written.
+assert.match(main, /const next = \{ \.\.\.current, \.\.\.patch \};/);
+assert.match(main, /saveConfig\(next\)/);
+assert.match(main, /dockWidth === 'compact' \? 268 : 320/);
+assert.match(preload, /setConfig: patch => ipcRenderer\.invoke\('config:set', patch\)/);
+// The palette arrives via config:get so new-note colours come from the single
+// source of truth in main.js, and notes:create passes the chosen entry.
+assert.match(main, /config:get'[^]*palette/, 'config:get must supply the palette');
+assert.match(dock, /window\.tabbin\.setConfig/, 'dock persists settings via preload');
+// --- Settings: save location actually redirects the notes file ------------
+// A folder picker that only stores a preference is a control that silently does
+// nothing, so assert the real data path is derived from it. notesDir() must be
+// called per read, not captured once at startup, or a change made in Settings
+// keeps writing to the old folder for the rest of the session.
+assert.match(main, /function notesDir\(\)/, 'the notes directory is resolved from config');
+assert.match(
+  main,
+  /const dataFile = \(\) => path\.join\(notesDir\(\), 'notes\.json'\)/,
+  'notes.json must live under the configured folder, not hardcoded userData',
+);
+assert.doesNotMatch(
+  main,
+  /const dataFile = \(\) => userDataFile\('notes\.json'\)/,
+  'the hardcoded userData path is exactly the bug this replaces',
+);
+// A bad folder must not be written: every later save would fail silently.
+assert.match(main, /function isValidSaveDir/);
+assert.match(main, /isValidSaveDir\(patch\.saveLocation\)/, 'config:set validates before writing');
+assert.match(main, /fs\.accessSync\(dir, fs\.constants\.W_OK\)/, 'the folder must be writable');
+// Choosing a folder moves the notes, so they do not appear to vanish.
+assert.match(main, /function migrateNotesDir/);
+assert.match(main, /migrateNotesDir\(notesDir\(\), patch\.saveLocation\)/);
+// The panel shows the resolved path, not the stored preference.
+assert.match(main, /notesPath: dataFile\(\)/, 'config:get reports the live notes path');
+assert.match(dock, /cfg\.notesPath/, 'the settings row renders the live path');
+assert.doesNotMatch(
+  dock,
+  /Same folder as Tabbin/,
+  'the placeholder label is replaced with the real path',
+);
+assert.match(preload, /pickFolder: \(\) => ipcRenderer\.invoke\('dialog:browse-folder'\)/);
+assert.match(main, /ipcMain\.handle\('dialog:browse-folder'/);
+assert.match(main, /properties: \['openDirectory'/);
+// The row shows a folder glyph, not the check mark it started as.
+assert.match(dock, /M3 7a2 2 0 0 1 2-2h4l2 2h8/, 'the save-location button uses a folder icon');
+assert.doesNotMatch(dock, /M9 13l2 2 4-4/, 'the old check mark is gone');
+// Clear-all is a real destructive path: it wipes, backs up, and closes windows.
+assert.match(main, /ipcMain\.handle\('notes:clear'/);
+assert.match(main, /saveNotes\(\[\]\)/, 'clear-all empties the notes file');
+assert.match(preload, /clear: confirm => ipcRenderer\.invoke\('notes:clear', confirm\)/);
 assert.match(note, /contenteditable="true"/);
 assert.match(note, /body::-webkit-scrollbar/);
 assert.match(note, /\.editor::-webkit-scrollbar/);
@@ -56,18 +119,18 @@ assert.match(note, /title="Align center"/);
 assert.match(note, /title="Align right"/);
 assert.match(main, /resizable: true/);
 assert.match(main, /window\.setResizable\(true\)/);
-// The note window is frameless and opaque, so the note colour reaches the
-// surface through the renderer rather than the native window background. The
-// window must still receive the palette it needs to draw its colour dots.
-//
-// The background must stay OPAQUE. An alpha-0 background without
-// `transparent: true` makes Chromium composite an uninitialised (white) region
-// over the text, which showed up as a white box and ghosted characters.
-assert.match(main, /backgroundColor: '#18181b'/);
+// The note window is frameless and genuinely transparent so the OS compositor
+// reaches the rounded corners. note.html paints an opaque gradient over .wrap,
+// which keeps the surface fully defined and prevents the uninitialised buffer
+// white box.
+assert.match(main, /transparent: true/);
+assert.match(main, /backgroundColor: '#00000000'/);
+assert.match(note, /clip-path: inset\(0 round 16px\)/);
+assert.match(note, /background: linear-gradient/, 'note.html paints its own opaque surface');
 assert.doesNotMatch(
-  main,
-  /backgroundColor: '#00000000'/,
-  'an alpha-0 background reintroduces the white-box compositing bug',
+  note,
+  /\.wrap[\s\S]*?border-radius: 16px/,
+  'a plain radius cannot cut an opaque native background',
 );
 // thickFrame keeps OS resize hit-testing active on a frameless window, which
 // makes every resize drag the most expensive repaint the window performs.
