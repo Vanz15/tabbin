@@ -78,6 +78,45 @@ assert.deepStrictEqual(
   [],
 );
 
+// --- Regression: a .blockmap row must not pose as a .exe row ---------------
+// v2.0.0's body listed four assets, including `Tabbin-Setup.exe.blockmap`. The
+// name regex was unanchored, so that row matched as `Tabbin-Setup.exe` and its
+// digest overwrote the real one — the guard then reported MISMATCH on a body
+// that was correct, which is how it failed v2.0.0 verification. A checker that
+// cries wolf on a correct release trains the reader to ignore it.
+const C = 'c'.repeat(64);
+assert.deepStrictEqual(
+  problems(
+    [
+      `| \`Tabbin-Setup.exe\` | \`${A}\` |`,
+      `| \`Tabbin-Setup.exe.blockmap\` | \`${C}\` |`,
+      `| \`latest.yml\` | \`${'e'.repeat(64)}\` |`,
+    ].join('\n'),
+  ),
+  [],
+  'a blockmap row after a correct Setup.exe row must not corrupt the claim',
+);
+assert.deepStrictEqual(
+  problems(`| \`Tabbin-Setup.exe.blockmap\` | \`${C}\` |`),
+  [],
+  'a blockmap row alone must not masquerade as a Setup.exe claim',
+);
+// The anchored regex must still catch a genuinely wrong .exe digest, or the fix
+// would have simply disabled the guard rather than repaired it.
+assert.strictEqual(
+  problems(
+    [`| \`Tabbin-Setup.exe\` | \`${'f'.repeat(64)}\` |`, `| \`Tabbin-Setup.exe.blockmap\` | \`${A}\` |`].join('\n'),
+  ).length,
+  1,
+  'a wrong Setup.exe digest is still reported even with a blockmap row present',
+);
+// And the blockmap digest must never be what gets compared.
+assert.doesNotMatch(
+  problems(`| \`Tabbin-Setup.exe\` | \`${A}\` |\n| \`Tabbin-Setup.exe.blockmap\` | \`${'f'.repeat(64)}\` |`).join(''),
+  /./,
+  'guard must stay quiet when only the blockmap digest is wrong',
+);
+
 console.log(
-  'PASS: release-body checksum guard (stale, malformed, truncated, mixed, CRLF and no-digest cases)',
+  'PASS: release-body checksum guard (stale, malformed, truncated, mixed, CRLF, no-digest and blockmap-collision cases)',
 );

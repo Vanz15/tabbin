@@ -111,7 +111,11 @@ function assetByName(assets, name) {
 // Two body formats exist across tags, and older lines can be malformed (a
 // missing closing backtick), so match the asset name and the hex run
 // independently instead of demanding one rigid shape.
-const BODY_NAME_RE = /Tabbin-[A-Za-z0-9.]+exe/;
+// The name must match as a WHOLE token, not a prefix. Unanchored, the row for
+// `Tabbin-Setup.exe.blockmap` matched as `Tabbin-Setup.exe` and then overwrote the
+// real Setup.exe digest in `claimed`, so a correct body always reported MISMATCH.
+// The trailing boundary stops the match before `.blockmap` / `.zip` / `.yml`.
+const BODY_NAME_RE = /Tabbin-[A-Za-z0-9.]+?exe(?![A-Za-z0-9.])/;
 const BODY_HASH_RE = /[0-9a-fA-F]{40,}/g;
 
 // GitHub computes a sha256 for every uploaded asset; it is the authoritative
