@@ -1,1 +1,528 @@
-<!doctype html><html><head><meta charset="UTF-8"><title>Tabbin Note</title><style>*{box-sizing:border-box}html,body{margin:0;background:transparent!important;color:#1b1d27;font-family:Inter,Segoe UI,sans-serif;overflow:hidden}body{background:var(--note-color,#f5c542)!important}body::-webkit-scrollbar,.wrap::-webkit-scrollbar,.editor::-webkit-scrollbar{width:0;height:0}.wrap{padding:20px;height:100vh;display:flex;flex-direction:column;gap:8px}.bar{display:flex;gap:10px;align-items:center}.title{flex:1;background:transparent;border:0;border-bottom:2px solid #0003;color:#161822;font:700 20px Inter,Segoe UI,sans-serif;padding:7px 2px;outline:none}.color{width:26px;height:26px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;overflow:hidden}.color::-webkit-color-swatch-wrapper{padding:0}.color::-webkit-color-swatch{border:2px solid #0005;border-radius:50%}.delete{border:0;background:#0002;color:#161822;border-radius:8px;width:32px;height:32px;font-size:18px;line-height:1;cursor:pointer}.editor{flex:1;min-height:0;background:transparent;border:0;color:#161822;padding:8px 2px;font:16px/1.6 Inter,Segoe UI,sans-serif;outline:none;overflow:auto;white-space:pre-wrap}.editor:empty:before{content:attr(data-placeholder);color:#0007}.editor ul,.editor ol{padding-left:28px}.editor p{margin:0 0 8px}.toolbar{display:flex;flex-wrap:nowrap;gap:3px;align-items:center;padding:4px 0;border-top:1px solid #0002;overflow:hidden}.tool{border:0;background:#0001;color:#161822;border-radius:5px;width:27px;height:25px;padding:3px;flex:0 0 27px;cursor:pointer}.tool svg{width:18px;height:18px;display:block;margin:auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.tool b,.tool i,.tool u{font:600 13px Inter,Segoe UI,sans-serif}.tool:hover,.tool.active{background:#0003}.pin-tool{font-size:15px}.status{font-size:11px;color:#0008}.tip{font-size:11px;color:#0007;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}</style></head><body><main class="wrap"><div class="bar"><input id="title" class="title"><input id="color" class="color" type="color" title="Change note color"><button id="delete" class="delete" title="Delete note">🗑</button></div><div id="editor" class="editor" contenteditable="true" data-placeholder="Write a note…"></div><div class="toolbar" aria-label="Text formatting"><button class="tool" title="Bold" data-cmd="bold"><b>B</b></button><button class="tool" title="Italic" data-cmd="italic"><i>I</i></button><button class="tool" title="Underline" data-cmd="underline"><u>U</u></button><button class="tool" title="Strikethrough" data-cmd="strikeThrough"><svg viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/></svg></button><button class="tool" title="Bulleted list" data-cmd="insertUnorderedList"><svg viewBox="0 0 24 24"><circle cx="4" cy="5" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="19" r="1"/><path d="M8 5h13M8 12h13M8 19h13"/></svg></button><button class="tool" title="Numbered list" data-cmd="insertOrderedList"><svg viewBox="0 0 24 24"><path d="M4 4v6M2 4h2M2 10h4M2 14h2a2 2 0 1 1-2 2h4M2 20h4M2 17h2a2 2 0 1 0-2-2"/><path d="M9 5h12M9 12h12M9 19h12"/></svg></button><button class="tool" title="Indent" data-cmd="indent">⇥</button><button class="tool" title="Outdent" data-cmd="outdent">⇤</button><button class="tool" title="Align left" data-cmd="justifyLeft"><svg viewBox="0 0 24 24"><path d="M21 5H3M15 12H3M17 19H3"/></svg></button><button class="tool" title="Align center" data-cmd="justifyCenter"><svg viewBox="0 0 24 24"><path d="M21 5H3M17 12H7M19 19H5"/></svg></button><button class="tool" title="Align right" data-cmd="justifyRight"><svg viewBox="0 0 24 24"><path d="M21 5H3M21 12H9M21 19H7"/></svg></button><button class="tool" title="Paragraph" data-cmd="formatBlock" data-value="p">¶</button><button id="pinNote" class="tool pin-tool" title="Always on top: off" type="button">📌</button></div><div class="status">Changes are saved automatically. <span id="saveState">Saved</span></div></main><script>const id=new URLSearchParams(location.search).get('id'),pinNote=document.querySelector('#pinNote'),title=document.querySelector('#title'),editor=document.querySelector('#editor'),color=document.querySelector('#color'),saveState=document.querySelector('#saveState'),body=document.body;let timer;function apply(n){const c=n.color||'#f5c542';body.style.setProperty('--note-color',c);color.value=c;title.value=n.title||'';editor.innerHTML=n.content||'';pinNote.classList.toggle('active',!!n.alwaysOnTop);pinNote.title=n.alwaysOnTop?'Always on top: on':'Always on top: off'}window.tabbin.get(id).then(n=>{if(n)apply(n)});function payload(){return{id,title:title.value,content:editor.innerHTML,color:color.value,alwaysOnTop:pinNote.classList.contains('active')}}function save(immediate=false){saveState.textContent='Saving…';clearTimeout(timer);const write=async()=>{await window.tabbin.update(payload());body.style.setProperty('--note-color',color.value);saveState.textContent='Saved'};if(immediate)write();else timer=setTimeout(write,450)}function command(btn){editor.focus();document.execCommand(btn.dataset.cmd,false,btn.dataset.value||null);save()}document.querySelectorAll('.tool').forEach(btn=>{if(btn.id!=='pinNote')btn.onmousedown=e=>{e.preventDefault();command(btn)}});pinNote.onclick=async()=>{const n=await window.tabbin.toggleNoteAlwaysOnTop(id);if(n)apply(n)};title.oninput=save;editor.oninput=save;color.oninput=()=>save(true);color.onchange=()=>save(true);document.querySelector('#delete').onclick=()=>{if(confirm('Delete this note?'))window.tabbin.remove(id)};window.tabbin.onChanged(notes=>{const n=notes.find(x=>x.id===id);if(n&&document.activeElement!==title&&document.activeElement!==editor&&document.activeElement!==color&&document.activeElement!==pinNote)apply(n)});</script></body></html>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tabbin Note</title>
+    <style>
+      /* Frosted-glass note window, ported from the design mockup's `.win`.
+         The window is frameless and translucent, so this page paints the whole
+         surface: the OS acrylic supplies the blur, these tokens the tint. */
+      :root {
+        --glass: rgba(24, 24, 27, 0.72);
+        --glass-line: rgba(255, 255, 255, 0.09);
+        --glass-hi: rgba(255, 255, 255, 0.06);
+        --ink: #f4f4f5;
+        --ink2: #b4b4bc;
+        --ink3: #76767e;
+        --danger: #f2786e;
+        --c: #8ec5e8;
+        font-family:
+          Inter,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        /* Transparent so the acrylic behind the window shows through. */
+        background: transparent !important;
+        color: var(--ink);
+        overflow: hidden;
+        font-family:
+          Inter,
+          "Segoe UI",
+          sans-serif;
+      }
+      body::-webkit-scrollbar,
+      .wrap::-webkit-scrollbar,
+      .editor::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+      .wrap {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        /* The window is now fully transparent (transparent:true + alpha 0), so the
+           CSS here paints the entire visible surface — this is what lets the
+           clip-path cut genuine rounded corners against the desktop and makes the
+           colour spine reach the edge. An opaque gradient base fills the surface
+           so Chromium never leaves an uninitialised white region to ghost. */
+        clip-path: inset(0 round 16px);
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--c) 17%, transparent),
+            transparent 42%
+          ),
+          #18181b;
+        border: 1px solid var(--glass-line);
+        box-shadow:
+          inset 0 1px 0 var(--glass-hi),
+          0 24px 60px rgba(0, 0, 0, 0.45),
+          0 2px 8px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+      /* Custom chrome bar: drag handle plus pin and close, as in the mockup */
+      .bar {
+        flex: 0 0 auto;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px 0 14px;
+        font-size: 12px;
+        color: var(--ink2);
+        -webkit-app-region: drag;
+        cursor: grab;
+        user-select: none;
+      }
+      .bar:active {
+        cursor: grabbing;
+      }
+      .bar .logo {
+        flex: none;
+        display: block;
+      }
+      .bar button {
+        -webkit-app-region: no-drag;
+      }
+      .wctl {
+        margin-left: auto;
+        display: flex;
+        gap: 2px;
+      }
+      .ib {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        flex: none;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--ink2);
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .ib svg {
+        width: 15px;
+        height: 15px;
+      }
+      .ib:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--ink);
+      }
+      .ib.on {
+        color: #8ec5e8;
+      }
+      .ib.danger:hover {
+        background: rgba(242, 120, 110, 0.16);
+        color: #f7a39a;
+      }
+      /* Title row with the colour dots replacing the old native colour input */
+      .head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        padding: 8px 16px 0;
+      }
+      .title {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid color-mix(in srgb, var(--c) 55%, transparent);
+        outline: none;
+        color: var(--ink);
+        font: 600 21px Inter, "Segoe UI", sans-serif;
+        letter-spacing: -0.015em;
+        padding: 0 0 8px;
+        transition: border-color 0.15s;
+      }
+      .title:focus {
+        border-color: var(--c);
+      }
+      .title::placeholder {
+        color: var(--ink3);
+      }
+      .dots {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        padding-bottom: 11px;
+      }
+      .dots button {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        background: var(--k);
+        padding: 0;
+        cursor: pointer;
+        transition: transform 0.15s;
+      }
+      .dots button:hover {
+        transform: scale(1.18);
+      }
+      .dots button[aria-pressed="true"] {
+        border-color: #fff;
+      }
+      /* The native colour input stays in the DOM but hidden: tests and the
+         picker affordance rely on #color, while the visible control is .dots. */
+      .color {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .editor {
+        flex: 1;
+        min-height: 0;
+        margin: 12px 16px 6px;
+        background: transparent;
+        border: 0;
+        outline: none;
+        color: #e4e4e8;
+        font: 14px/1.65 Inter, "Segoe UI", sans-serif;
+        overflow: auto;
+        white-space: pre-wrap;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
+      .editor:empty:before {
+        content: attr(data-placeholder);
+        color: var(--ink3);
+      }
+      .editor ul,
+      .editor ol {
+        margin: 4px 0;
+        padding-left: 22px;
+      }
+      .editor p {
+        margin: 0 0 8px;
+      }
+      .toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px;
+        padding: 8px 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+      }
+      .tool {
+        flex: 0 0 auto;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        color: var(--ink2);
+        font-size: 13.5px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .tool svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .tool b,
+      .tool i,
+      .tool u,
+      .tool s {
+        font: 600 13.5px Inter, "Segoe UI", sans-serif;
+      }
+      .tool:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--ink);
+      }
+      /* Active formatting command reflects the caret's current state */
+      .tool.active {
+        background: color-mix(in srgb, var(--c) 24%, transparent);
+        color: var(--c);
+      }
+      .toolbar .sep {
+        width: 1px;
+        height: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 0 4px;
+      }
+      .status {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 16px 12px;
+        font-size: 11.5px;
+        color: var(--ink3);
+      }
+      .status .st::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #9ccfa5;
+        margin-right: 7px;
+        vertical-align: 1px;
+        transition: background 0.2s;
+      }
+      .status .st.busy::before {
+        background: #f0d58a;
+      }
+      .status .words {
+        flex: 0 0 auto;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dots button,
+        .tool,
+        .ib,
+        .title {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="bar">
+        <svg class="logo" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <rect x="2" y="2" width="10" height="2.4" rx="1.2" fill="#F2A38F" />
+          <rect x="2" y="5.8" width="7" height="2.4" rx="1.2" fill="#8EC5E8" />
+          <rect x="2" y="9.6" width="9" height="2.4" rx="1.2" fill="#9CCFA5" />
+        </svg>
+        <span>Tabbin Note</span>
+        <div class="wctl">
+          <button
+            id="pinNote"
+            class="ib"
+            title="Always on top: off"
+            type="button"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 17v5M9 3h6l-1 6 3 3H7l3-3z" />
+            </svg>
+          </button>
+          <button id="closeWin" class="ib danger" title="Close note" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="head">
+        <input id="title" class="title" placeholder="Untitled note" aria-label="Note title" />
+        <input id="color" class="color" type="color" title="Change note color" />
+        <div class="dots" id="dots" role="group" aria-label="Note colour"></div>
+        <button id="delete" class="ib danger" title="Delete note" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+          </svg>
+        </button>
+      </div>
+      <div id="editor" class="editor" contenteditable="true" data-placeholder="Write a note…"></div>
+      <div class="toolbar" aria-label="Text formatting">
+        <button class="tool" title="Bold" data-cmd="bold"><b>B</b></button
+        ><button class="tool" title="Italic" data-cmd="italic"><i>I</i></button
+        ><button class="tool" title="Underline" data-cmd="underline"><u>U</u></button
+        ><button class="tool" title="Strikethrough" data-cmd="strikeThrough"><svg viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/></svg></button
+        ><span class="sep"></span
+        ><button class="tool" title="Bulleted list" data-cmd="insertUnorderedList"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6" fill="currentColor"/><circle cx="4.5" cy="12" r=".6" fill="currentColor"/><circle cx="4.5" cy="18" r=".6" fill="currentColor"/></svg></button
+        ><button class="tool" title="Numbered list" data-cmd="insertOrderedList"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v4M4 14h3l-3 3h3"/></svg></button
+        ><span class="sep"></span
+        ><button class="tool" title="Outdent" data-cmd="outdent"><svg viewBox="0 0 24 24"><path d="M20 6H10M20 12h-6M20 18H10M7 9l-3 3 3 3"/></svg></button
+        ><button class="tool" title="Indent" data-cmd="indent"><svg viewBox="0 0 24 24"><path d="M20 6H10M20 12h-6M20 18H10M4 9l3 3-3 3"/></svg></button
+        ><span class="sep"></span
+        ><button class="tool" title="Align left" data-cmd="justifyLeft"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h14"/></svg></button
+        ><button class="tool" title="Align center" data-cmd="justifyCenter"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M5 18h14"/></svg></button
+        ><button class="tool" title="Align right" data-cmd="justifyRight"><svg viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M6 18h14"/></svg></button
+        ><button class="tool" title="Paragraph" data-cmd="formatBlock" data-value="p">¶</button>
+      </div>
+      <div class="status">
+        <span class="st" id="saveState">Saved automatically</span>
+        <span class="words" id="wordCount"></span>
+      </div>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      // The main process owns the palette so the dots and the colours it
+      // assigns to new notes can never drift apart.
+      const palette = (params.get('palette') || '#F2A38F,#9CCFA5,#8EC5E8,#F0D58A,#B9A7E8')
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      const pinNote = document.querySelector('#pinNote'),
+        closeWin = document.querySelector('#closeWin'),
+        title = document.querySelector('#title'),
+        editor = document.querySelector('#editor'),
+        color = document.querySelector('#color'),
+        dots = document.querySelector('#dots'),
+        saveState = document.querySelector('#saveState'),
+        wordCount = document.querySelector('#wordCount'),
+        body = document.body;
+      let timer;
+      let wordTimer;
+      // Writing this window's own state back into the contenteditable tears the
+      // caret down and rebuilds the text, so a repaint still in flight from the
+      // keystroke gets composited against a surface that no longer exists — the
+      // ghosting that lingered after a delete. Track what is already rendered
+      // and only touch the DOM when the incoming value actually differs.
+      let renderedContent = null;
+      let renderedTitle = null;
+      function apply(n) {
+        const c = n.color || palette[0];
+        body.style.setProperty('--c', c);
+        color.value = c;
+        const nextTitle = n.title || '';
+        if (nextTitle !== renderedTitle) {
+          title.value = nextTitle;
+          renderedTitle = nextTitle;
+        }
+        const nextContent = n.content || '';
+        if (nextContent !== renderedContent) {
+          editor.innerHTML = nextContent;
+          renderedContent = nextContent;
+        }
+        pinNote.classList.toggle('on', !!n.alwaysOnTop);
+        pinNote.setAttribute('aria-pressed', !!n.alwaysOnTop);
+        // The test suite asserts on this exact wording.
+        pinNote.title = n.alwaysOnTop ? 'Always on top: on' : 'Always on top: off';
+        drawDots(c);
+        scheduleWordCount();
+      }
+      function drawDots(current) {
+        dots.innerHTML = palette
+          .map(
+            (c) =>
+              `<button style="--k:${c}" data-c="${c}" title="${c}" aria-label="Use colour ${c}" aria-pressed="${c.toLowerCase() === String(current).toLowerCase()}"></button>`,
+          )
+          .join('');
+      }
+      dots.onclick = (e) => {
+        const button = e.target.closest('button[data-c]');
+        if (!button) return;
+        const next = button.dataset.c;
+        body.style.setProperty('--c', next);
+        color.value = next;
+        drawDots(next);
+        save(true);
+      };
+      // Reading editor.innerText forces a synchronous layout flush. Doing that on
+      // every keystroke stalls the frame, and any repaint still in flight when
+      // the save round-trip lands becomes visible as ghosting. Debounce it so
+      // the read happens once typing has settled.
+      function scheduleWordCount() {
+        clearTimeout(wordTimer);
+        wordTimer = setTimeout(countWords, 250);
+      }
+      function countWords() {
+        const words = (editor.innerText || '').trim().split(/\s+/).filter(Boolean).length;
+        wordCount.textContent = words + (words === 1 ? ' word' : ' words');
+      }
+      function payload() {
+        return {
+          id,
+          title: title.value,
+          content: editor.innerHTML,
+          color: color.value,
+          alwaysOnTop: pinNote.classList.contains('on'),
+        };
+      }
+      // Keep the tracked content in step with what this window has actually
+      // rendered, so the saved echo is recognised as our own and skipped.
+      function markEdited() {
+        renderedTitle = title.value;
+        renderedContent = editor.innerHTML;
+      }
+      function save(immediate = false) {
+        saveState.textContent = 'Saving…';
+        saveState.classList.add('busy');
+        scheduleWordCount();
+        clearTimeout(timer);
+        const write = async () => {
+          markEdited();
+          await window.tabbin.update(payload());
+          saveState.textContent = 'Saved automatically';
+          saveState.classList.remove('busy');
+        };
+        if (immediate) write();
+        else timer = setTimeout(write, 450);
+      }
+      function command(button) {
+        editor.focus();
+        document.execCommand(button.dataset.cmd, false, button.dataset.value || null);
+        syncTools();
+        save();
+      }
+      // Reflect the caret's active formatting so the current command lights up,
+      // as in the mockup.
+      function syncTools() {
+        document.querySelectorAll('.tool[data-cmd]').forEach((button) => {
+          let on = false;
+          try {
+            on = document.queryCommandState(button.dataset.cmd);
+          } catch {
+            on = false;
+          }
+          button.classList.toggle('active', !!on);
+        });
+      }
+      document.querySelectorAll('.tool').forEach((button) => {
+        button.onmousedown = (e) => {
+          e.preventDefault();
+          command(button);
+        };
+      });
+      editor.addEventListener('keyup', syncTools);
+      editor.addEventListener('mouseup', syncTools);
+      pinNote.onclick = async () => {
+        const n = await window.tabbin.toggleNoteAlwaysOnTop(id);
+        if (n) apply(n);
+      };
+      closeWin.onclick = () => window.close();
+      title.oninput = () => save();
+      editor.oninput = () => save();
+      color.oninput = () => save(true);
+      color.onchange = () => save(true);
+      document.querySelector('#delete').onclick = () => {
+        if (confirm('Delete this note?')) window.tabbin.remove(id);
+      };
+      window.tabbin.onChanged((notes) => {
+        const n = notes.find((x) => x.id === id);
+        // Don't clobber the field the user is currently typing in.
+        if (
+          n &&
+          document.activeElement !== title &&
+          document.activeElement !== editor &&
+          document.activeElement !== color &&
+          document.activeElement !== pinNote
+        )
+          apply(n);
+      });
+      window.tabbin.get(id).then((n) => {
+        if (n) apply(n);
+        editor.focus();
+      });
+    </script>
+  </body>
+</html>
