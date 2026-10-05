@@ -682,6 +682,49 @@ for (const mode of ['clear', 'bare']) {
   );
 }
 
+// The overflow menu must not cast a drop shadow. It kept an 18px/44px shadow at
+// 0.5 alpha, which threw a dark smudge across the desktop whenever the menu was
+// open. It is opaque #17171b with a 1px border, so the border is what separates
+// it from the wallpaper.
+// `.menu` also prefixes `.menu[hidden]`, so anchor on the opening brace.
+const menuBody = ruleBody(dock, '.menu {');
+assert.ok(!menuBody.includes('display: none'), 'must match the real .menu rule, not .menu[hidden]');
+assert.match(menuBody, /background: #17171b/, 'the menu stays opaque so it reads over any desktop');
+assert.match(menuBody, /border: 1px solid/, 'the menu keeps its 1px edge without a shadow');
+assert.doesNotMatch(
+  menuBody,
+  /box-shadow:[^;]*\b\d+px\s+\d+px/,
+  'the overflow menu must not cast a drop shadow over the desktop',
+);
+
+// Shadow budget: nothing that is VISIBLE AT REST may cast a drop shadow heavier
+// than 0.25 alpha. Two exceptions are deliberate:
+//
+//   - the glass-mode panel, the one surface meant to read as a floating sheet of
+//     dark glass (clear and bare override it to none, which is why their tiles,
+//     the menu and the settings view all have to stay flat)
+//   - the tile drag lift, which only exists while a note is being dragged
+const BUDGET_EXCEPTIONS = [
+  { budget: 0.5, why: 'glass panel' },
+  { budget: 0.5, why: 'tile drag lift' },
+];
+for (const m of dock.matchAll(/box-shadow:\s*([^;}]+)/g)) {
+  const decl = m[1];
+  const line = dock.slice(0, m.index).split('\n').length;
+  const allowed = Math.max(0.25, ...BUDGET_EXCEPTIONS.map((e) => e.budget));
+  // Only the two known sites may exceed the resting budget; everything else is
+  // held to it strictly.
+  const isGlassPanel = line < 100;
+  const isDragLift = decl.includes('14px 30px');
+  const budget = isGlassPanel || isDragLift ? allowed : 0.25;
+  for (const a of decl.matchAll(/rgba\(\s*0,\s*0,\s*0,\s*([\d.]+)\s*\)/g)) {
+    assert.ok(
+      Number(a[1]) <= budget,
+      `drop shadow at ${a[1]} alpha (line ${line}) exceeds the ${budget} budget: ${decl.trim().slice(0, 60)}`,
+    );
+  }
+}
+
 // Expanded search flattens the glyph onto the field, so the chip must not paint.
 assert.match(
   dock,
@@ -697,16 +740,19 @@ assert.match(
 // alone matched an earlier `.dock.clear .tab {` used only for pointer-events,
 // so the assertions were reading the wrong block.
 function ruleBody(css, selector) {
-  // Several selectors repeat in this stylesheet — `.dock.clear .tab {` appears
-  // once for pointer-events and again for the tile itself. Take the LAST
-  // occurrence, which is the rule that actually styles the element, so these
-  // assertions cannot silently read the wrong block.
+  // The selector must begin its own line. Substring matching silently returned
+  // the wrong block three separate times: `.menu {` also occurs inside
+  // `.dock.right .menu {`, `.dock.clear .button` inside
+  // `.dock.clear .button:hover`, and `.dock.clear .tab {` inside an earlier
+  // pointer-events rule. Every rule here is indented on its own line, so
+  // requiring a leading newline (or start of input) is what makes the match
+  // exact. Where a selector genuinely repeats, the LAST match wins, since that
+  // is the rule carrying the mode-specific overrides.
+  const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|\\n[ \\t]*)${esc}`, 'g');
   let at = -1;
-  for (;;) {
-    const next = css.indexOf(selector, at + 1);
-    if (next === -1) break;
-    at = next;
-  }
+  let hit;
+  while ((hit = re.exec(css)) !== null) at = hit.index + hit[0].length - selector.length;
   if (at === -1) return '';
   const open = css.indexOf('{', at);
   let depth = 0;

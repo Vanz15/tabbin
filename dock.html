@@ -157,7 +157,13 @@
         backdrop-filter: none;
       }
       /* Overflow menu. Anchored under the menu glyph, opaque so it stays legible
-         over the desktop in clear and bare modes. */
+         over the desktop in clear and bare modes.
+
+         No drop shadow: an 18px/44px shadow at 0.5 alpha threw a dark haze
+         across the desktop around the menu, which was the same complaint as the
+         tile shadows. It is already opaque #17171b against an arbitrary
+         wallpaper, so the 1px border is what separates it — the shadow only
+         added a smudge behind the panel. */
       .menu {
         position: absolute;
         top: 52px;
@@ -168,7 +174,7 @@
         border-radius: 12px;
         background: #17171b;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+        box-shadow: none;
       }
       .menu[hidden] {
         display: none;
