@@ -153,6 +153,8 @@
          flattened rather than drawn as a second pill. */
       .searchwrap.open .search-toggle-inset {
         background: none;
+        border-color: transparent;
+        backdrop-filter: none;
       }
       /* Overflow menu. Anchored under the menu glyph, opaque so it stays legible
          over the desktop in clear and bare modes. */
@@ -330,7 +332,7 @@
       .tab:hover {
         border-color: rgba(255, 255, 255, 0.14);
         transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
       }
       .tab:active {
         cursor: grabbing;
@@ -565,6 +567,15 @@
       .dock.bare .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
       }
+      .dock.bare .search-btn {
+        background: rgba(18, 20, 30, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+      .dock.bare .search-btn:hover {
+        background: rgba(255, 255, 255, 0.26);
+      }
       .dock.bare .button {
         background: rgba(18, 20, 30, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -582,12 +593,12 @@
       .dock.bare .foot {
         border-top: 0;
         color: rgba(255, 255, 255, 0.85);
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
       .dock.bare .foot button,
       .dock.bare .foot .version {
         color: rgba(255, 255, 255, 0.85);
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
       /* Settings needs its own opaque surface now that the dock has none. */
       .dock.bare .sets {
@@ -630,6 +641,18 @@
       .dock.clear .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
       }
+      /* The search toggle needs the same dark chip as the add and menu glyphs.
+         Its base rule is a 6%-white chip with near-white ink, which disappears
+         against a light desktop in clear mode. */
+      .dock.clear .search-btn {
+        background: rgba(18, 20, 30, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
+        backdrop-filter: blur(14px);
+      }
+      .dock.clear .search-btn:hover {
+        background: rgba(255, 255, 255, 0.26);
+      }
 
       .dock.clear .button {
         background: rgba(18, 20, 30, 0.5);
@@ -645,12 +668,12 @@
       .dock.clear .foot {
         border-top: 0;
         color: rgba(255, 255, 255, 0.85);
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
       .dock.clear .foot button,
       .dock.clear .foot .version {
         color: rgba(255, 255, 255, 0.85);
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
 
       /* Clear mode needs its own opaque panel behind settings: with no dock
@@ -659,7 +682,7 @@
         background: rgba(24, 24, 27, 0.94);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 18px;
-        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
         backdrop-filter: blur(22px);
       }
 
@@ -748,9 +771,10 @@
           var(--c, #8ec5e8),
           color-mix(in srgb, var(--c, #8ec5e8) 80%, #fff)
         );
-        box-shadow:
-          0 6px 18px rgba(0, 0, 0, 0.28),
-          inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        /* At rest the tile is flat colour with a 1px border. A drop shadow here
+           read as haze around the whole dock against a light desktop, so the
+           lift is applied on hover instead. */
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
         color: #1c1c22;
         overflow: hidden;
         transition:
@@ -769,7 +793,7 @@
         height: 88px;
         transform: none;
         box-shadow:
-          0 12px 28px rgba(0, 0, 0, 0.35),
+          0 6px 14px rgba(0, 0, 0, 0.14),
           inset 0 1px 0 rgba(255, 255, 255, 0.5);
       }
       /* Text is hidden on the collapsed tile and fades in once expanded. */

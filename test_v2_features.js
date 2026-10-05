@@ -627,4 +627,87 @@ assert.match(note, /markEdited\(\);\s*\n\s*await window\.tabbin\.update/, 'mark 
 assert.equal(pkg.build.productName, 'Tabbin');
 assert.ok(!pkg.build.linux);
 assert.match(pkg.build.nsis.include, /installer\.nsh/);
+
+// --- Header contrast in the transparent modes -----------------------------
+// `.search-btn` originally had no mode-specific rule, so in clear and bare it
+// kept its base 6%-white chip with near-white ink. On a light desktop the
+// magnifier was invisible while the add and menu glyphs beside it were fine.
+for (const mode of ['clear', 'bare']) {
+  assert.match(
+    dock,
+    new RegExp(`\\.dock\\.${mode} \\.search-btn \\{[^}]*background: rgba\\(18, 20, 30`),
+    `${mode} mode must give the search toggle the same dark chip as the other header buttons`,
+  );
+  assert.match(
+    dock,
+    new RegExp(`\\.dock\\.${mode} \\.search-btn \\{[^}]*color: #fff`),
+    `${mode} mode must force the magnifier to white so it reads on a light desktop`,
+  );
+}
+// Expanded search flattens the glyph onto the field, so the chip must not paint.
+assert.match(
+  dock,
+  /\.searchwrap\.open \.search-toggle-inset \{[^}]*background: none/,
+  'expanded search must not keep the collapsed chip behind the field',
+);
+
+// --- Shadow budget -------------------------------------------------------
+// Clear-mode tiles used to carry a 6px/18px drop shadow at rest and a heavier
+// one on hover, which read as haze around the whole dock over a light desktop.
+// At rest the tile is flat colour; the lift belongs on hover only.
+// Slice the real rule bodies by their braces. Indexing on the selector text
+// alone matched an earlier `.dock.clear .tab {` used only for pointer-events,
+// so the assertions were reading the wrong block.
+function ruleBody(css, selector) {
+  // Several selectors repeat in this stylesheet — `.dock.clear .tab {` appears
+  // once for pointer-events and again for the tile itself. Take the LAST
+  // occurrence, which is the rule that actually styles the element, so these
+  // assertions cannot silently read the wrong block.
+  let at = -1;
+  for (;;) {
+    const next = css.indexOf(selector, at + 1);
+    if (next === -1) break;
+    at = next;
+  }
+  if (at === -1) return '';
+  const open = css.indexOf('{', at);
+  let depth = 0;
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === '{') depth += 1;
+    else if (css[i] === '}') {
+      depth -= 1;
+      if (depth === 0) return css.slice(open, i + 1);
+    }
+  }
+  return '';
+}
+const tileRest = ruleBody(dock, '.dock.clear .tab {');
+assert.doesNotMatch(
+  tileRest,
+  /box-shadow:[^;]*\b\d+px\s+\d+px\s+rgba\(0,\s*0,\s*0/,
+  'a clear-mode tile must not cast a drop shadow at rest',
+);
+// The hover rule is written as a two-selector list ending in ':hover',
+// so match on the prefix and let ruleBody walk to its closing brace.
+const tileHover = ruleBody(dock, '.dock.clear .tab:hover,');
+assert.ok(tileHover.includes('box-shadow'), 'clear-mode hover rule must declare a box-shadow');
+const hoverAlpha = Number(
+  ((tileHover.match(/box-shadow:[^;]*?rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/) || [])[1]) || 1,
+);
+assert.ok(
+  hoverAlpha <= 0.2,
+  `clear-mode hover shadow must stay subtle (alpha ${hoverAlpha}), got ${hoverAlpha}`,
+);
+assert.match(
+  tileRest,
+  /inset 0 1px 0 rgba\(255, 255, 255, 0\.45\)/,
+  'the tile keeps its inset top light so it still reads as lit from above',
+);
+// The footer text-shadow sat at 0.5 alpha over an arbitrary desktop.
+for (const sel of ['.dock.clear .foot', '.dock.bare .foot']) {
+  const block = ruleBody(dock, sel);
+  const alpha = Number((block.match(/text-shadow:[^;]*rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/) || [])[1] || 1);
+  assert.ok(alpha <= 0.35, `${sel} text-shadow must stay subtle (alpha ${alpha}), got ${alpha}`);
+}
+
 console.log('PASS: Tabbin rich-text, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration');
