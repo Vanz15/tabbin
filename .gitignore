@@ -29,3 +29,8 @@ coverage/
 # Temp files
 tmp/
 *.tmp
+
+# Local scratch and tool output
+.freebuff/
+brag-output*/
+check-*.json
