@@ -644,6 +644,44 @@ for (const mode of ['clear', 'bare']) {
     `${mode} mode must force the magnifier to white so it reads on a light desktop`,
   );
 }
+// Hover must DARKEN the chip in the transparent modes, not lighten it. The
+// chip is `rgba(18,20,30,0.5)` with a white glyph; hovering to
+// `rgba(255,255,255,0.26)` washed it toward white and the glyph vanished with
+// it on a pale desktop.
+for (const mode of ['clear', 'bare']) {
+  for (const control of ['search-btn', 'button']) {
+    const sel = `.dock.${mode} .${control}:hover`;
+    assert.match(
+      dock,
+      new RegExp(`\\.dock\\.${mode} \\.${control}:hover \\{[^}]*background: rgba\\(18, 20, 30`),
+      `${sel} must darken the chip; a white overlay washes out the white glyph on a light desktop`,
+    );
+    assert.doesNotMatch(
+      ruleBody(dock, sel),
+      /background:[^;]*rgba\(255,\s*255,\s*255/,
+      `${sel} must not lighten the chip`,
+    );
+  }
+}
+// The resting chip and its hover must differ, or there is no hover feedback.
+// Match the resting selector with its opening brace: `.dock.clear .button` is a
+// prefix of `.dock.clear .button:hover`, so a bare prefix match made ruleBody
+// return the hover rule for both and the comparison compared it with itself.
+for (const mode of ['clear', 'bare']) {
+  const rest = (ruleBody(dock, `.dock.${mode} .button {`).match(
+    /background: rgba\(18, 20, 30, ([\d.]+)\)/,
+  ) || [])[1];
+  const hov = (ruleBody(dock, `.dock.${mode} .button:hover`).match(
+    /background: rgba\(18, 20, 30, ([\d.]+)\)/,
+  ) || [])[1];
+  assert.ok(rest && hov, `${mode} mode must declare a chip background at rest and on hover`);
+  assert.notEqual(rest, hov, `${mode} mode must visibly change the chip on hover`);
+  assert.ok(
+    Number(hov) > Number(rest),
+    `${mode} hover must be more opaque than rest (${rest} -> ${hov})`,
+  );
+}
+
 // Expanded search flattens the glyph onto the field, so the chip must not paint.
 assert.match(
   dock,
