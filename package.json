@@ -27,7 +27,7 @@
   "build": {
     "appId": "com.vanz15.tabbin",
     "productName": "Tabbin",
-    "copyright": "Copyright © 2026 Vanz15",
+    "copyright": "Copyright \u00a9 2026 Vanz15",
     "asar": true,
     "files": [
       "main.js",
@@ -102,7 +102,17 @@
           ]
         }
       ]
-    }
+    },
+    "extraResources": [
+      {
+        "from": "icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "icon.png",
+        "to": "icon.png"
+      }
+    ]
   },
   "allowScripts": {
     "electron@32.3.3": true

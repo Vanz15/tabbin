@@ -245,6 +245,49 @@ assert.match(
   /\.editor \{[\s\S]*?color: var\(--ink\);/,
   'the editor must take its colour from the ink token, not a hardcoded value',
 );
+// The active-formatting glyph was the note colour, which on a classic window is
+// the colour of the sheet it sits on — invisible exactly when the user is trying
+// to confirm which format is on.
+assert.doesNotMatch(
+  ruleBody(note, '.tool.active'),
+  /color: var\(--c\)/,
+  'an active tool glyph must not be the note colour; classic mode paints the sheet that colour',
+);
+assert.match(
+  ruleBody(note, '.tool.active'),
+  /color: var\(--ink\)/,
+  'the active tool glyph follows the ink token, so classic mode darkens it',
+);
+
+// The taskbar icon must be a real file. Inside app.asar, Electron silently falls
+// back to the generic page icon, which is why an open note showed no Tabbin
+// icon in a packaged build while dev mode was fine.
+assert.match(
+  main,
+  /if \(!app\.isPackaged\) return path\.join\(__dirname, file\);/,
+  'a dev run must keep using the source icon',
+);
+assert.match(
+  main,
+  /path\.join\(process\.resourcesPath, file\)/,
+  'a packaged build must load the icon from resources/, not from inside the asar',
+);
+assert.match(pkg.build.extraResources && JSON.stringify(pkg.build.extraResources), /icon\.ico/,
+  'the icons must ship as loose files for the packaged icon path to resolve');
+// Both the dock and note windows take their icon from that helper, so neither
+// can drift back to a bare __dirname path.
+assert.equal((main.match(/icon: appIcon\(\)/g) || []).length, 2, 'dock and note windows share the icon helper');
+
+// A white-on-dark surface anywhere on the note page is invisible on the light
+// classic sheet. Only the classic overrides may use white fills.
+for (const sel of ['.tool:hover', '.toolbar', '.toolbar .sep']) {
+  const block = ruleBody(note, `.classic ${sel} {`);
+  assert.ok(
+    !/rgba\(255,\s*255,\s*255/.test(block),
+    `.classic ${sel} must not use a white fill; it disappears on the light sheet`,
+  );
+}
+
 for (const hard of ['#e4e4e8']) {
   assert.doesNotMatch(
     note,

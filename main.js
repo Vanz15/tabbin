@@ -37,7 +37,18 @@ if (!hasSingleInstanceLock) {
   });
 }
 
-const appIcon = () => path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+// The taskbar icon has to be a REAL file on disk. In a packaged build __dirname
+// lives inside app.asar, and Electron cannot load a taskbar icon from inside an
+// asar archive — it silently falls back to the generic page icon, which is why
+// an open note showed no Tabbin icon. electron-builder copies icon.ico to
+// resources/ as a loose file, so prefer that when packaged and fall back to the
+// source tree for `npm start`.
+const appIcon = () => {
+  const file = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  if (!app.isPackaged) return path.join(__dirname, file);
+  const loose = path.join(process.resourcesPath, file);
+  return fs.existsSync(loose) ? loose : path.join(__dirname, file);
+};
 const configFile = () => userDataFile('config.json');
 // Notes live beside Tabbin's other userData by default. When Settings picks a
 // folder, notes.json lives there instead — so this resolves on every call rather

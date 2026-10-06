@@ -91,6 +91,20 @@
         background: rgba(0, 0, 0, 0.07);
         color: #1c1c22;
       }
+      .classic .tool:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      /* The toolbar's top border and the separator between groups were white at
+         low alpha, which is invisible on the light sheet. */
+      .classic .toolbar {
+        border-top-color: rgba(28, 28, 34, 0.14);
+      }
+      .classic .toolbar .sep {
+        background: rgba(28, 28, 34, 0.16);
+      }
+      .classic .editor {
+        scrollbar-color: rgba(28, 28, 34, 0.25) transparent;
+      }
       .classic .ib.on {
         color: #1c1c22;
       }
@@ -301,10 +315,13 @@
         background: rgba(255, 255, 255, 0.08);
         color: var(--ink);
       }
-      /* Active formatting command reflects the caret's current state */
+      /* Active formatting command reflects the caret's current state.
+         The glyph is --ink, never the note colour: in classic mode the window
+         is a sheet of that same colour, so a --c glyph on it was invisible. The
+         tinted chip behind it still marks the command as active. */
       .tool.active {
         background: color-mix(in srgb, var(--c) 24%, transparent);
-        color: var(--c);
+        color: var(--ink);
       }
       .toolbar .sep {
         width: 1px;
