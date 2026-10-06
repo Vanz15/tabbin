@@ -19,16 +19,18 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.2.1** brings back the classic coloured-note look, reduces the dock to two
-> appearances, and lets you drag a note out of the dock to open it. **v1.0.1**
-> remains available on the releases page if you prefer the older tab-based
-> dock.
+> **v2.2.2** adds editor keyboard shortcuts — align, strikethrough, indent, and
+> automatic lists — and fixes the Save location row so it shows the folder your
+> notes are actually in. **v2.2.1** brought back the classic coloured-note look
+> and lets you drag a note out of the dock to open it. **v1.0.1** remains
+> available on the releases page if you prefer the older tab-based dock.
 
 ## Features
 
 - **Two dock appearances** — classic (coloured tiles that expand on hover) or glass (the same cards floating without a panel behind them)
 - **Drag a note out to open it** — pull a tile off the dock and it opens where you drop it; drag around inside the dock to reorder instead
 - **Settings panel** — dock side, appearance, auto-hide, dock width, launch-on-startup, save location, and clear-all-notes, behind one menu
+- **Find your notes** — Settings shows the folder your notes live in, with one button to open it and another to move them
 - **Right-edge docking** — the layout mirrors, so notes grow away from the edge and the header aligns to it
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
 - **Concise header** — search, add, and menu; search expands in place when you want it
@@ -36,6 +38,7 @@ reorder.
 - **Bundled Geist typeface** — no CDN fetch at runtime, so the UI renders identically offline
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
+- **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, and automatic lists when you type `1. ` or `- `
 - **Native-resizable windows** — note windows remember their size across sessions
 - **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from a five-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy

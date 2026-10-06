@@ -5,6 +5,51 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-10-06
+
+Editor keyboard shortcuts, and a Save location row that tells you where your
+notes actually are. No data format changed.
+
+### Added
+
+- **Align left / centre / right** — `Ctrl+L`, `Ctrl+E`, `Ctrl+R`
+- **Strikethrough** — `Ctrl+Alt+S`, which has no native browser binding
+- **Indent and outdent** — `Tab` and `Shift+Tab` inside a list. Outside a list
+  `Tab` still moves focus out of the note, as it always did.
+- **Automatic lists** — type `1. ` or `- ` at the start of a block to turn it
+  into a numbered or bulleted list. Typing the marker inside an existing list
+  does not nest a new one.
+- **Open the save folder** — a button that reveals where notes are stored,
+  separate from the control that changes it.
+
+Bold, italic and underline were already handled by the browser's own shortcuts
+and are unchanged.
+
+### Changed
+
+- **Clear all notes** now uses a trash can instead of an X.
+- **The three header controls are the same size.** Search was 34px against the
+  new-note button's 30px, with a different corner radius, so the glyphs did not
+  read as a set. All three are 30px with an 8px radius, and the expanded search
+  field matches.
+
+### Fixed
+
+- **Settings showed the settings icon as a brightness glyph.** It was a bare
+  ring plus eight short radial strokes, which at 16px is indistinguishable from a
+  sun icon. It is now a toothed cog outline with a centre bore.
+- **Save location read "Unknown location".** The settings panel painted once
+  before the configuration arrived, wrote the placeholder, and nothing repainted
+  it afterwards.
+- **Save location read "Loading…" forever after changing it.** The read and write
+  config handlers returned different shapes, and the renderer merges whatever it
+  receives over its own config — so a response with no path in it erased the path
+  it already had. Both handlers now return the same shape.
+- **Save location showed "notes.json".** The path is the notes file, so taking
+  its last segment gave the filename rather than the folder. It now shows the
+  directory, clipping from the left so the folder name stays visible on a long
+  path.
+
 ## [2.2.1] - 2026-10-06
 
 The dock goes back to the classic coloured-note look, and a tile can now be
@@ -241,6 +286,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.2.2]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.1
 [2.1.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.0.0
