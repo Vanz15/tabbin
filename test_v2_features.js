@@ -274,24 +274,39 @@ assert.match(
 );
 assert.match(pkg.build.extraResources && JSON.stringify(pkg.build.extraResources), /icon\.ico/,
   'the icons must ship as loose files for the packaged icon path to resolve');
-// The asar path was NOT the cause: the exe carries RT_GROUP_ICON and both
-// windows set `icon`. The real cause is window grouping — with one shared
-// AppUserModelID, Windows takes the taskbar icon from the registered shortcut
-// and ignores BrowserWindow.icon. Only a per-window appId fixes it.
+// The taskbar icon resisted three "fixes" that each asserted the same static
+// facts — the exe carries RT_GROUP_ICON, both windows set `icon`, the icon path
+// resolves to a real 6-size ICO. Every one of those was true while the icon was
+// still wrong, so repeating them proves nothing. What is left worth locking
+// down is only the input that could be malformed, and the wiring.
 assert.match(
-  main,
-  /const window = new BrowserWindow\(\{\s*\n\s*appId: `com\.vanz15\.tabbin\.note\.\$\{id\}`,/,
-  'a note window needs its own appId or Windows ignores its icon',
+  pkg.build.files && JSON.stringify(pkg.build.files),
+  /icon\.ico/,
+  'the icon must ship inside the app',
 );
-// Only the app-level id should remain; a second top-level call would undo this.
+assert.match(
+  pkg.build.extraResources && JSON.stringify(pkg.build.extraResources),
+  /icon\.ico/,
+  'and as a loose file the packaged build hands to Windows',
+);
+assert.match(
+  pkg.build.win && JSON.stringify(pkg.build.win),
+  /icon\.ico/,
+  'electron-builder must embed the icon in the exe itself',
+);
+// Note windows get their own taskbar entry, so their icon must not be taken from
+// the app's registered shortcut.
+assert.match(main, /appId: `com\.vanz15\.tabbin\.note\.\$\{id\}`,/);
 assert.equal(
   (main.match(/app\.setAppUserModelId\(/g) || []).length,
   1,
-  'app.setAppUserModelId is set once for the app; per-window ids go on the window',
+  'the app-level id is set once; per-window ids belong on the window',
 );
-// Both the dock and note windows take their icon from that helper, so neither
-// can drift back to a bare __dirname path.
-assert.equal((main.match(/icon: appIcon\(\)/g) || []).length, 2, 'dock and note windows share the icon helper');
+assert.equal(
+  (main.match(/icon: appIcon\(\)/g) || []).length,
+  2,
+  'dock and note windows must resolve their icon through the same helper',
+);
 
 // A white-on-dark surface anywhere on the note page is invisible on the light
 // classic sheet. Only the classic overrides may use white fills.

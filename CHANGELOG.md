@@ -5,6 +5,55 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-10-06
+
+The dock goes back to the classic coloured-note look, and a tile can now be
+dragged out of the dock to open. The note data format is unchanged, so upgrading
+preserves existing notes and settings.
+
+### Added
+
+- **Drag a tile out of the dock to open that note**, where it was released. A
+  "Release to open" hint follows the cursor while you drag. Released back inside
+  the dock it is still a reorder, so the existing drag-to-reorder is untouched.
+  Works from either screen edge.
+### Changed
+
+- **The dock has two appearances instead of three.**
+  - `classic` — coloured note tiles that expand on hover. Previously `clear`.
+  - `glass` — the same cards floating without a panel behind them. Previously
+    `bare`.
+  - The near-opaque panel mode is gone. It had no successor in user feedback,
+    which asked for the classic look back.
+- **Note windows follow the dock's appearance.** Classic notes open as a solid
+  sheet of the note colour with dark text; glass notes keep the dark window.
+- **Settings offers Classic and Glass.**
+
+### Fixed
+
+- **Dragging a tile out of the dock did nothing.** The bounds test lived in the
+  renderer, comparing drag coordinates against the dock's own rect — but once
+  the cursor leaves the dock window, Chromium stops delivering drag events and
+  clamps the coordinates to the window, so no point outside was ever visible
+  there. The decision now happens in the main process, which reads the true
+  cursor position and compares it against the dock's real bounds. A window
+  dropped on a second monitor opens on that monitor.
+- **The right edge stopped mirroring after the mode rename.** Two rules were
+  compound selectors, `.dock.right.clear`, and renaming the plain `.dock.clear`
+  selector never matched them, so they silently stopped applying and notes grew
+  left-to-right again.
+- **Active formatting was invisible in classic mode.** Bold, italic and
+  strikethrough were drawn in the note colour, which on a classic note window is
+  the colour of the sheet they sit on. The glyph now follows the page's ink
+  colour, so it darkens on the light sheet.
+- **Toolbar borders, separators and hover fills were white on the classic
+  sheet**, where they read as dirt rather than as surfaces.
+- **The note body ignored the classic appearance** because its colour was
+  hardcoded instead of following the page's ink token.
+
+Note storage, the note editor, auto-update and the settings panel are unchanged
+apart from the mode rename.
+
 ## [2.1.0] - 2026-10-05
 
 The dock gains a choice of appearances, a settings panel, and right-edge
@@ -192,6 +241,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.2.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.1
 [2.1.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.1.0
 [2.0.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.0.0
 [1.0.1]: https://github.com/Vanz15/tabbin/releases/tag/v1.0.1
