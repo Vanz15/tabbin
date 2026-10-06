@@ -348,7 +348,13 @@ function openNote(id, at) {
   const note = loadNotes().find(item => item.id === id);
   const noteColor = note && note.color || palette[0];
   const config = loadConfig();
+  // A per-window AppUserModelID. Sharing the app's makes Windows group every
+  // window under one identity and take the taskbar icon from the registered
+  // shortcut rather than from BrowserWindow.icon, so a note showed a generic
+  // page icon despite the exe carrying one. Setting `appId` here is what makes
+  // the per-window `icon` actually take effect.
   const window = new BrowserWindow({
+    appId: `com.vanz15.tabbin.note.${id}`,
     width: config.noteWidth || 430, height: config.noteHeight || 430, minWidth: 300, minHeight: 260, resizable: true,
     // Frameless with custom chrome drawn in note.html, matching the mockup's
     // logo bar with pin/close controls. titleBarStyle 'hidden' keeps the native

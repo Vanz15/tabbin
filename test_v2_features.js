@@ -274,6 +274,21 @@ assert.match(
 );
 assert.match(pkg.build.extraResources && JSON.stringify(pkg.build.extraResources), /icon\.ico/,
   'the icons must ship as loose files for the packaged icon path to resolve');
+// The asar path was NOT the cause: the exe carries RT_GROUP_ICON and both
+// windows set `icon`. The real cause is window grouping — with one shared
+// AppUserModelID, Windows takes the taskbar icon from the registered shortcut
+// and ignores BrowserWindow.icon. Only a per-window appId fixes it.
+assert.match(
+  main,
+  /const window = new BrowserWindow\(\{\s*\n\s*appId: `com\.vanz15\.tabbin\.note\.\$\{id\}`,/,
+  'a note window needs its own appId or Windows ignores its icon',
+);
+// Only the app-level id should remain; a second top-level call would undo this.
+assert.equal(
+  (main.match(/app\.setAppUserModelId\(/g) || []).length,
+  1,
+  'app.setAppUserModelId is set once for the app; per-window ids go on the window',
+);
 // Both the dock and note windows take their icon from that helper, so neither
 // can drift back to a bare __dirname path.
 assert.equal((main.match(/icon: appIcon\(\)/g) || []).length, 2, 'dock and note windows share the icon helper');
