@@ -79,14 +79,9 @@ moved — upgrading preserves your existing notes and settings.
 
 ### Checksums
 
-<!-- Fill these in from the artifacts actually published, not from a local dist/
-     taken before the publish-time rebuild. `npm run verify:feed` checks these
-     against GitHub's stored asset digests and fails on a mismatch. -->
+<!-- Taken from the assets GitHub actually stored, not from the local dist/.
+     `npm run verify:feed -- --tag v2.1.0` checks these against the published
+     asset digests and fails on a mismatch. -->
 
-- `Tabbin-Setup.exe`: _(pending — record sha256 after publish)_
-- `Tabbin-Portable.exe`: _(pending — record sha256 after publish)_
-
-> [!IMPORTANT]
-> Do not publish with the placeholder checksums above. Copy the digests from the
-> uploaded assets, then run `npm run verify:feed -- --tag v2.1.0` to confirm
-> they match the files GitHub actually stored.
+- `Tabbin-Setup.exe`: `b84acf3207ca4053d49c5dee8bbf4888fbf8181935ff50716e75b29d57d9633c`
+- `Tabbin-Portable.exe`: `a89d5de12439c8244c209a43ec75a15fd64c0a311ceec673530b2a9581293dc7`
