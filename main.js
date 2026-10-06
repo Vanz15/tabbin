@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell } = require('electron');
 const updater = require('./updater');
 const path = require('path');
 const fs = require('fs');
@@ -600,6 +600,18 @@ ipcMain.handle('dock:content-height', (_, h) => {
 ipcMain.handle('dock:cursor-left', () => scheduleHide());
 // Folder picker for the Settings "Save location" row. Returns the chosen
 // absolute path, or null if the user cancels. Persists via config:set.
+// Reveal where notes actually live. Opening the folder itself (rather than
+// selecting notes.json) is the useful action: the user is answering "where are
+// my notes", not "open this exact file".
+ipcMain.handle('shell:show-notes-folder', async () => {
+  const file = dataFile();
+  // showItemInFolder highlights notes.json when it exists, and falls back to
+  // opening the containing directory when it does not — which is the right
+  // behaviour for a fresh install with no notes yet.
+  if (fs.existsSync(file)) shell.showItemInFolder(file);
+  else await shell.openPath(path.dirname(file));
+  return true;
+});
 ipcMain.handle('dialog:browse-folder', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createPrompt'],

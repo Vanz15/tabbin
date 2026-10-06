@@ -562,6 +562,73 @@
           command(button);
         };
       });
+      // --- Keyboard shortcuts -------------------------------------------
+      // Bold/italic/underline already work because the browser maps Ctrl+B/I/U
+      // to execCommand natively. Everything below is new behaviour.
+      //
+      // Align uses Ctrl+L / Ctrl+E / Ctrl+R, matching the convention in other
+      // editors rather than the Ctrl+Shift+... form, because Ctrl+L and Ctrl+R
+      // are otherwise unused in a contenteditable surface.
+      const ALIGN = { l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight' };
+      editor.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        const key = e.key.toLowerCase();
+
+        // Strikethrough has no native binding. Ctrl+Alt+S matches Google Docs and
+        // Word, and cannot collide with the browser's Ctrl+S, which is kept.
+        if (key === 's' && e.altKey) {
+          e.preventDefault();
+          document.execCommand('strikeThrough', false, null);
+          markEdited();
+          syncTools();
+          return;
+        }
+        // Align left / centre / right. Alt is excluded so Ctrl+Alt+S above is
+        // not swallowed, and so no other modifier can reach an align command.
+        if (e.altKey) return;
+        if (ALIGN[key]) {
+          e.preventDefault();
+          document.execCommand(ALIGN[key], false, null);
+          markEdited();
+          syncTools();
+        }
+      });
+      // Tab and Shift+Tab indent and outdent inside a list, the way every word
+      // processor does. Without this the key would move focus out of the note,
+      // which is the single most common complaint about rich-text editors. A
+      // Tab in a paragraph with no list would insert a tab character, so that
+      // case is left alone and focus still moves.
+      editor.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey) return;
+        const sel = window.getSelection();
+        if (!sel || !sel.anchorNode || !editor.contains(sel.anchorNode)) return;
+        const inList = !!sel.anchorNode.parentElement &&
+          !!sel.anchorNode.parentElement.closest('ul,ol');
+        if (!inList) return;
+        e.preventDefault();
+        document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+        markEdited();
+        syncTools();
+      });
+      // Automatic lists: typing "1. " or "- " at the start of a block turns it
+      // into a list, the same shorthand every editor supports. execCommand's
+      // insertUnorderedList on an empty-ish first line does the conversion and
+      // swallows the trigger text.
+      editor.addEventListener('input', (e) => {
+        const sel = window.getSelection();
+        if (!sel || !sel.anchorNode) return;
+        const node = sel.anchorNode;
+        const text = node.textContent || '';
+        const isBullet = /(^|\s)- $/.test(text);
+        const isOrdered = /(^|\s)1\. $/.test(text);
+        if (!isBullet && !isOrdered) return;
+        // Only at the start of a block, and never mid-list.
+        const block = node.nodeType === 3 ? node.parentElement : node;
+        if (!block || /^(UL|OL|LI)$/.test(block.tagName)) return;
+        document.execCommand(isBullet ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+        markEdited();
+        syncTools();
+      });
       editor.addEventListener('keyup', syncTools);
       editor.addEventListener('mouseup', syncTools);
       pinNote.onclick = async () => {

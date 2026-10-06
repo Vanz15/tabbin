@@ -454,9 +454,25 @@ assert.match(dock, /max-height: var\(--list-max, 70vh\)/,
 assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?gap: 6px;/,
   'classic tiles must sit closer together');
 
-// The gear must be a real gear: a ring plus radial teeth, not the old dense cog.
+// The gear must read as a cog, not a sun. A ring plus radial ticks is
+// indistinguishable from a brightness glyph at 16px, which is what it looked
+// like; a toothed outline with a centre bore is not.
 const gearBlock = (dock.match(/id="gear"[\s\S]*?<\/button>/) || [''])[0];
-assert.match(gearBlock, /<circle cx="12" cy="12"/, 'the settings icon must include a ring');
+assert.match(
+  gearBlock,
+  /<circle cx="12\.9" cy="12" r="2\.9"/,
+  'the gear has a centre bore',
+);
+assert.doesNotMatch(
+  gearBlock,
+  /M12 2\.8v2\.4/,
+  'radial tick marks read as a brightness icon at 16px, not as a gear',
+);
+assert.match(
+  gearBlock,
+  /2 3\.4 2\.4-1/,
+  'the cog outline steps in and out, which is what makes the teeth visible',
+);
 assert.doesNotMatch(gearBlock, /M19\.4 15a1\.7/,
   'the old muddy cog path must be gone from the settings icon');
 
@@ -663,7 +679,10 @@ for (const tag of setsBlock.match(/<div\b[^>]*>|<\/div>/g) || []) {
   if (tag.startsWith('</')) {
     setsDepth -= 1;
   } else {
-    if (tag.includes('srow')) srowDepths.push(setsDepth);
+    // Match the class token, not a substring: `.srowacts` is a button wrapper
+    // inside a row and is not itself a row.
+    const classes = (tag.match(/class="([^"]*)"/) || [])[1] || '';
+    if (classes.split(/\s+/).includes('srow')) srowDepths.push(setsDepth);
     setsDepth += 1;
   }
 }
@@ -991,5 +1010,126 @@ for (const sel of ['.dock.classic .foot', '.dock.glass .foot']) {
   const alpha = Number((block.match(/text-shadow:[^;]*rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/) || [])[1] || 1);
   assert.ok(alpha <= 0.35, `${sel} text-shadow must stay subtle (alpha ${alpha}), got ${alpha}`);
 }
+
+
+// --- Save location row ----------------------------------------------------
+// The initial cfg literal has no notesPath, so the label rendered before
+// config() resolved and left "Unknown location" on screen — permanently, since
+// nothing else repainted it on a fast machine.
+assert.doesNotMatch(
+  dock,
+  /label\.textContent = [^;]*Unknown/,
+  'the save location must never show a placeholder; an unresolved path says so instead',
+);
+assert.match(
+  dock,
+  /const path = cfg\.notesPath \|\| "";/,
+  'a missing path falls back to empty, not to a fake location string',
+);
+assert.match(dock, /Loading…/, 'the unresolved state is explicit rather than a wrong answer');
+assert.match(
+  dock,
+  /label\.textContent = folder;/,
+  'the row shows the folder name, which is the part a user recognises',
+);
+assert.match(dock, /row\.title = path;/, 'the full path stays available in the tooltip');
+assert.match(
+  dock,
+  /row\.setAttribute\("aria-label", "Save location: " \+ path\)/,
+  'the full path is exposed to assistive tech, not truncated away',
+);
+// Reveal and Change are different actions and must not share one id — two
+// handlers on one id means the second silently wins.
+assert.match(dock, /id="saveLocBtn"/, 'the reveal control exists');
+assert.match(dock, /id="saveLocChange"/, 'changing the folder is a separate control');
+assert.match(
+  dock,
+  /querySelector\("#saveLocBtn"\)\.onclick = \(\) => window\.tabbin\.showNotesFolder\(\);/,
+  'the folder button reveals where notes are saved',
+);
+assert.match(
+  dock,
+  /querySelector\("#saveLocChange"\)\.onclick = async \(\) => \{[\s\S]*?pickFolder\(\)/,
+  'the change control opens the folder picker',
+);
+assert.match(preload, /showNotesFolder: \(\) => ipcRenderer\.invoke\('shell:show-notes-folder'\)/);
+assert.match(main, /ipcMain\.handle\('shell:show-notes-folder'/);
+assert.match(
+  main,
+  /if \(fs\.existsSync\(file\)\) shell\.showItemInFolder\(file\);[\s\S]*?else await shell\.openPath\(path\.dirname\(file\)\);/,
+  'revealing works on a fresh install with no notes file yet',
+);
+
+// --- Settings gear --------------------------------------------------------
+// The old glyph was a bare ring plus eight short radial strokes, which at 16px
+// is indistinguishable from a sun/brightness icon.
+assert.doesNotMatch(
+  dock,
+  /<circle cx="12" cy="12" r="3\.2" \/>\s*<path d="M12 2\.8v2\.4/,
+  'the ring-plus-ticks glyph reads as a brightness icon at 16px',
+);
+assert.match(
+  dock,
+  /19\.4 13a7\.6 7\.6 0 0 0 0-2l2-1\.6-2-3\.4/,
+  'the settings glyph is a toothed cog path, not a ring with ticks',
+);
+
+// --- Editor keyboard shortcuts -------------------------------------------
+// Nothing bound keydown before this; bold/italic/underline only work because
+// the browser maps them to execCommand itself.
+assert.match(note, /const ALIGN = \{ l: 'justifyLeft', e: 'justifyCenter', r: 'justifyRight' \};/);
+assert.match(
+  note,
+  /editor\.addEventListener\('keydown',[\s\S]*?document\.execCommand\(ALIGN\[key\], false, null\)/,
+  'Ctrl+L / Ctrl+E / Ctrl+R map to the align commands',
+);
+assert.match(
+  note,
+  /if \(key === 's' && e\.altKey\)[\s\S]*?document\.execCommand\('strikeThrough', false, null\)/,
+  'Ctrl+Alt+S applies strikethrough, which has no native binding',
+);
+// The alt branch has to be tested BEFORE the `if (e.altKey) return` guard, or
+// Ctrl+Alt+S is unreachable and the shortcut silently does nothing.
+const keyHandler = note.slice(note.indexOf("const ALIGN = {"), note.indexOf("// Tab and Shift+Tab"));
+assert.ok(
+  keyHandler.indexOf("key === 's' && e.altKey") < keyHandler.indexOf("if (e.altKey) return;"),
+  'the strikethrough branch must come before the alt guard or it can never run',
+);
+assert.match(
+  note,
+  /e\.key !== 'Tab' \|\| e\.ctrlKey \|\| e\.metaKey \|\| e\.altKey/,
+  'Tab is only intercepted for indent, never alongside another modifier',
+);
+assert.match(
+  note,
+  /document\.execCommand\(e\.shiftKey \? 'outdent' : 'indent', false, null\)/,
+  'Shift+Tab outdents and Tab indents',
+);
+assert.match(
+  note,
+  /closest\('ul,ol'\)/,
+  'indent only applies inside a list, so Tab still leaves the field elsewhere',
+);
+// The literal source text is `/(^|\s)- $/` and `/(^|\s)1\. $/`, so these use
+// indexOf on the exact substrings rather than a regex that would need its own
+// escaping.
+assert.ok(
+  note.includes('const isBullet = /(^|\\s)- $/.test(text);'),
+  'a typed "- " triggers a bullet list',
+);
+assert.ok(
+  note.includes('const isOrdered = /(^|\\s)1\\. $/.test(text);'),
+  'a typed "1. " triggers a numbered list',
+);
+assert.match(
+  note,
+  /isBullet \? 'insertUnorderedList' : 'insertOrderedList'/,
+  'both list shorthands are handled',
+);
+assert.match(
+  note,
+  /if \(!block \|\| \/\^\(UL\|OL\|LI\)\$\/\.test\(block\.tagName\)\) return;/,
+  'typing a list marker inside an existing list must not nest a new one',
+);
 
 console.log('PASS: Tabbin rich-text, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration');

@@ -975,8 +975,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        direction: rtl;
-        text-align: left;
+      }
+      /* Reveal and Change sit side by side, so the row's own controls column has
+         to allow for two buttons instead of one. */
+      .srowacts {
+        display: flex;
+        gap: 6px;
+        flex: 0 0 auto;
       }
       /* Segmented control, from the mockup's .seg */
       .seg {
@@ -1122,10 +1127,15 @@
       <div class="menu" id="menuPanel" hidden>
         <button id="gear" class="mitem" title="Settings" aria-label="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <!-- Clean stroked gear: a ring plus eight radial teeth. The previous
-                 path was a dense filled-outline cog that turned to mud at 16px. -->
-            <circle cx="12" cy="12" r="3.2" />
-            <path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.7 6.7 5 5M19 19l-1.7-1.7M17.3 6.7 19 5M5 19l1.7-1.7" />
+            <!-- A toothed outline, not a ring with ticks. The earlier version was a
+                 bare circle plus eight short radial strokes, which at 16px is
+                 indistinguishable from a sun/brightness glyph. This is the
+                 standard 8-tooth cog path: the outer radius alternates between
+                 the tooth tips and the root, so the silhouette reads as a gear. -->
+            <path
+              d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.7 7.7 0 0 0-1.7-1L14.9 3h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6z"
+            />
+            <circle cx="12.9" cy="12" r="2.9" />
           </svg>
           <span>Settings</span>
         </button>
@@ -1210,9 +1220,14 @@
             <div>
               <b>Save location</b><small id="saveLocLabel"></small>
             </div>
-            <button id="saveLocBtn" class="button" title="Choose save location" aria-label="Choose save location">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
-            </button>
+            <div class="srowacts">
+              <button id="saveLocBtn" class="button" title="Show where notes are saved" aria-label="Show where notes are saved">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+              </button>
+              <button id="saveLocChange" class="button" title="Change save location" aria-label="Change save location">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" /><path d="M13.5 6.5l4 4" /></svg>
+              </button>
+            </div>
           </div>
           <h4>Notes</h4>
           <div class="srow">
@@ -1618,12 +1633,28 @@
       // a stored preference — which is what makes it useful after a folder change.
       function updateSaveLocationLabel() {
         const label = document.querySelector("#saveLocLabel");
-        const path = cfg.notesPath || "Unknown location";
-        // direction:rtl in CSS keeps the folder NAME visible when the line is
-        // truncated, which is the part a user actually recognises.
-        label.textContent = path;
+        // The initial cfg literal has no notesPath, so this can run once before
+        // config() resolves. Printing the fallback then left "Unknown location"
+        // on screen until something else triggered a repaint — which on a fast
+        // machine never happened. Wait for the real path instead of guessing.
+        const path = cfg.notesPath || "";
+        if (!path) {
+          label.textContent = "Loading…";
+          label.title = "";
+          document.querySelector("#saveLocRow").title = "";
+          return;
+        }
+        // The full path is long and the dock is narrow, so show the tail — the
+        // folder name is the part a user recognises. The full path stays in the
+        // tooltip and is exposed to assistive tech via the title.
+        const parts = path.split(/[\\/]/).filter(Boolean);
+        const folder = parts[parts.length - 1] || path;
+        label.textContent = folder;
         label.title = path;
-        document.querySelector("#saveLocRow").title = path;
+        const row = document.querySelector("#saveLocRow");
+        row.title = path;
+        row.setAttribute("aria-label", "Save location: " + path);
+        document.querySelector("#saveLocBtn").title = "Open " + path;
       }
       document.querySelector("#gear").onclick = () => {
         sets.classList.add("show");
@@ -1651,12 +1682,15 @@
         });
         applyCfg();
       };
-      document.querySelector("#saveLocBtn").onclick = async () => {
+      document.querySelector("#saveLocChange").onclick = async () => {
         const dir = await window.tabbin.pickFolder();
         if (!dir) return;
         cfg = await window.tabbin.setConfig({ saveLocation: dir });
         applyCfg();
       };
+      // Reveal the folder rather than opening a picker: the common question is
+      // "where are my notes", not "move them somewhere else".
+      document.querySelector("#saveLocBtn").onclick = () => window.tabbin.showNotesFolder();
       document.querySelector("#clearAll").onclick = async () => {
         if (confirm("Delete all " + (notes.length) + " notes? This cannot be undone.")) {
           const result = await window.tabbin.clear(true);
