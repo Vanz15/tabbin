@@ -182,9 +182,15 @@ assert.match(
   'the card reports the finished drag and lets the main process decide',
 );
 assert.match(preload, /dropNote: id => ipcRenderer\.invoke\('dock:note-dropped', id\)/);
-// The hint must still exist — it is the only feedback that releasing will open.
-assert.match(dock, /\.droptip/, 'a drag-out hint element must exist');
-assert.match(dock, /Release to open/, 'the hint says what releasing will do');
+// The hint was removed in 2.3.0 — the dock is its own OS window, so a
+// position:fixed hint can never leave the panel.
+assert.doesNotMatch(
+  dock,
+  /\.droptip|Release to open/,
+  'the drag-out hint was removed: the dock is its own OS window, so a ' +
+    'position:fixed hint cannot leave the panel and it never worked',
+);
+assert.match(dock, /document\.addEventListener\("drop"/, 'drop-out still bubbles to the main process');
 assert.doesNotMatch(
   main,
   /notes:open-at/,
@@ -764,7 +770,8 @@ assert.match(note, /title="Align left"/);
 assert.match(note, /title="Align center"/);
 assert.match(note, /title="Align right"/);
 assert.match(main, /resizable: true/);
-assert.match(main, /window\.setResizable\(true\)/);
+// `window.setResizable(true)` was redundant with the constructor option above and
+// has been removed; the assertion above is what keeps the note window resizable.
 // The note window is frameless and genuinely transparent so the OS compositor
 // reaches the rounded corners. note.html paints an opaque gradient over .wrap,
 // which keeps the surface fully defined and prevents the uninitialised buffer

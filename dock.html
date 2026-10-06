@@ -167,25 +167,6 @@
          tile shadows. It is already opaque #17171b against an arbitrary
          wallpaper, so the 1px border is what separates it — the shadow only
          added a smudge behind the panel. */
-      /* Drag-out hint. Fixed so it tracks the cursor across the whole screen
-         rather than being clipped by the dock's overflow. */
-      .droptip {
-        position: fixed;
-        z-index: 90;
-        display: none;
-        padding: 5px 10px;
-        border-radius: 8px;
-        background: rgba(20, 20, 23, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: #fff;
-        font: 500 12px var(--font);
-        white-space: nowrap;
-        pointer-events: none;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-      }
-      .droptip.show {
-        display: block;
-      }
 
       .menu {
         position: absolute;
@@ -1257,6 +1238,32 @@
       </section>
     </main>
     <script>
+      // --- Drag a tile out of the dock to open it ---------------------------
+      // Dragging inside the dock reorders; dragging out past the dock's own
+      // bounds opens the note where it was released.
+      //
+      // The renderer cannot make that decision itself. Once the cursor leaves
+      // the dock window Chromium stops delivering `dragover`, and the
+      // coordinates on `dragend` are clamped to the window, so a
+      // getBoundingClientRect comparison here can never see a point outside —
+      // which is why an earlier version of this looked right and did nothing.
+      // The main process owns the real screen cursor and the dock's real
+      // bounds, so it makes the call. The renderer only reports that a drag of
+      // of a particular note finished.
+      //
+      // This lives at script top level, not inside measureListCap(): it was
+      // nested there by mistake, which re-registered these two document
+      // listeners on every re-measure.
+      //
+      // While the cursor is still over the dock, `dragover` fires normally and
+      // the per-card handlers do the reordering. Nothing to do here.
+      document.addEventListener("dragover", (e) => {
+        if (dragId) e.preventDefault();
+      });
+      document.addEventListener("drop", (e) => {
+        if (dragId) e.preventDefault();
+      });
+
       let notes = [],
         dragId = null;
       const root = document.querySelector(".dock"),
@@ -1401,7 +1408,6 @@
             if (dragId) window.tabbin.dropNote(dragId);
             dragId = null;
             el.classList.remove("dragging");
-            dragHint.classList.remove("show");
             document
               .querySelectorAll(".drag-over")
               .forEach((x) => x.classList.remove("drag-over"));
@@ -1450,32 +1456,7 @@
       // Measured, never guessed: cards are content-driven, so a hard-coded pixel
       // cap fits a different number of notes at every content length.
       function measureListCap() {
-        // --- Drag a tile out of the dock to open it --------------------------
-      // Dragging inside the dock reorders; dragging out past the dock's own
-      // bounds opens the note where it was released.
-      //
-      // The renderer cannot make that decision itself. Once the cursor leaves
-      // the dock window Chromium stops delivering `dragover`, and the
-      // coordinates on `dragend` are clamped to the window, so a
-      // getBoundingClientRect comparison here can never see a point outside —
-      // which is why an earlier version of this looked right and did nothing.
-      // The main process owns the real screen cursor and the dock's real
-      // bounds, so it makes the call. The renderer only reports that a drag of
-      // a particular note finished.
-      const dragHint = document.createElement("div");
-      dragHint.className = "droptip";
-      dragHint.textContent = "Release to open";
-      document.body.appendChild(dragHint);
-      // While the cursor is still over the dock, `dragover` fires normally and
-      // the per-card handlers do the reordering. Nothing to do here.
-      document.addEventListener("dragover", (e) => {
-        if (dragId) e.preventDefault();
-      });
-      document.addEventListener("drop", (e) => {
-        if (dragId) e.preventDefault();
-      });
-
-      const stack = document.querySelector("#stack");
+        const stack = document.querySelector("#stack");
         if (!stack) return null;
         const cards = stack.querySelectorAll(":scope > .tab");
         if (!cards.length) return null;
@@ -1594,8 +1575,7 @@
       // --- Settings -------------------------------------------------
       // Opens as an overlay inside this dock, not a second window. Values are
       // persisted through the main process so the dock re-lays out immediately.
-      const sets = document.querySelector("#sets"),
-        sVersion = document.querySelector("#sVersion");
+      const sets = document.querySelector("#sets");
       let cfg = {
         edge: "left",
         edgeHover: true,
@@ -1629,7 +1609,7 @@
         // The mode decides how many notes fit, so a mode change invalidates both
         // the list cap and the window height. A class change alone does not
         // resize #stack reliably, so request the re-measure explicitly.
-        if (typeof scheduleReport === "function") scheduleReport();
+        scheduleReport();
       }
       async function patchCfg(patch) {
         cfg = await window.tabbin.setConfig(patch);
