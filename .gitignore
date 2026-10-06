@@ -38,3 +38,6 @@ check-*.json
 # Local note data — never commit this
 notes.json
 notes.json.bak
+
+# Agent handoff notes
+.hermes/
