@@ -157,13 +157,33 @@
         backdrop-filter: none;
       }
       /* Overflow menu. Anchored under the menu glyph, opaque so it stays legible
-         over the desktop in clear and bare modes.
+         over the desktop in classic and glass modes.
 
          No drop shadow: an 18px/44px shadow at 0.5 alpha threw a dark haze
          across the desktop around the menu, which was the same complaint as the
          tile shadows. It is already opaque #17171b against an arbitrary
          wallpaper, so the 1px border is what separates it — the shadow only
          added a smudge behind the panel. */
+      /* Drag-out hint. Fixed so it tracks the cursor across the whole screen
+         rather than being clipped by the dock's overflow. */
+      .droptip {
+        position: fixed;
+        z-index: 90;
+        display: none;
+        padding: 5px 10px;
+        border-radius: 8px;
+        background: rgba(20, 20, 23, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font: 500 12px var(--font);
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+      }
+      .droptip.show {
+        display: block;
+      }
+
       .menu {
         position: absolute;
         top: 52px;
@@ -274,7 +294,7 @@
          survive in a static card list. */
       /* The list shows at most five notes and scrolls beyond that. The cap is a
          max-height rather than a fixed window size because card height is
-         content-driven in glass/bare but a fixed 52px tile in clear mode — one
+         content-driven in glass but a fixed 52px tile in classic mode — one
          number cannot serve both. The renderer measures the natural height and
          the main process sizes and centres the window to match. */
       .stack {
@@ -512,13 +532,9 @@
          sample — the effect is alpha alone. 0.80 is the point where light text
          stays readable over an arbitrary desktop while the wallpaper still
          shows through. */
-      .dock.glass {
-        --glass: rgba(20, 20, 23, 0.96);
-        --glass-line: rgba(255, 255, 255, 0.09);
-        --glass-hi: rgba(255, 255, 255, 0.08);
-      }
+      
 
-      /* Bare: the glass cards with no panel behind them. The cards keep the
+      /* Glass: the glass cards with no panel behind them. The cards keep the
          glass design — full width, colour spine, light ink — but there is no
          panel, so each card has to supply its own contrast. The glass card fill
          is only a 15% colour tint over 3.5% white, which is effectively
@@ -526,7 +542,7 @@
          made that readable. Here the card gets the panel's own dark base at the
          same tint, so it reads as the same design whether or not a panel is
          behind it. */
-      .dock.bare {
+      .dock.glass {
         --glass: transparent;
         --glass-line: transparent;
         background: none;
@@ -535,89 +551,88 @@
         box-shadow: none;
       }
       /* Only the cards, search and footer take clicks, so the desktop stays
-         reachable in the gaps — the same reasoning as clear mode. */
-      .dock.bare .stack {
+         reachable in the gaps — the same reasoning as classic mode. */
+      .dock.glass .stack {
         /* Five cards plus four 7px gaps. The card height is content-driven, so
            this is a ceiling rather than an exact fit — the renderer clamps its
            reported height to it and the list scrolls inside. */
         pointer-events: none;
       }
-      /* Glass and Bare render the same cards, so they share one cap. Glass had no
-         --list-max of its own and silently fell back to the 620px default, which
-         is why it showed a different number of cards than the other two modes. */
+      /* The card list is content-driven in glass mode and a fixed 52px tile in
+         classic mode, so each declares its own visible-count cap. */
 
-      .dock.bare .top,
-      .dock.bare .foot,
-      .dock.bare .sets,
-      .dock.bare .tab {
+      .dock.glass .top,
+      .dock.glass .foot,
+      .dock.glass .sets,
+      .dock.glass .tab {
         pointer-events: auto;
       }
       /* The card carries the dark base the panel would have provided. */
-      .dock.bare .tab {
+      .dock.glass .tab {
         background: linear-gradient(
             135deg,
             color-mix(in srgb, var(--c, #8ec5e8) 15%, transparent),
             rgba(255, 255, 255, 0.035) 62%
           ),
-          var(--glass-bare, rgba(20, 20, 23, 0.96));
+          var(--glass-card, rgba(20, 20, 23, 0.96));
         border-color: rgba(255, 255, 255, 0.09);
       }
-      /* Same small blurred chips as clear mode, so the search field and buttons
+      /* Same small blurred chips as classic mode, so the search field and buttons
          stay legible against an arbitrary desktop. */
-      .dock.bare .search {
+      .dock.glass .search {
         background: rgba(18, 20, 30, 0.5);
         border-color: rgba(255, 255, 255, 0.14);
         color: #fff;
         backdrop-filter: blur(14px);
       }
-      .dock.bare .search::placeholder {
+      .dock.glass .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
       }
-      .dock.bare .search-btn {
+      .dock.glass .search-btn {
         background: rgba(18, 20, 30, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.14);
         color: #fff;
         backdrop-filter: blur(14px);
       }
-      .dock.bare .search-btn:hover {
+      .dock.glass .search-btn:hover {
         background: rgba(18, 20, 30, 0.78);
       }
-      .dock.bare .button {
+      .dock.glass .button {
         background: rgba(18, 20, 30, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.14);
         color: #fff;
         backdrop-filter: blur(14px);
       }
-      .dock.bare .button:hover {
+      .dock.glass .button:hover {
         background: rgba(18, 20, 30, 0.78);
       }
-      .dock.bare .update {
+      .dock.glass .update {
         background: rgba(18, 20, 30, 0.72);
         border-color: rgba(255, 255, 255, 0.16);
         color: #fff;
       }
-      .dock.bare .foot {
+      .dock.glass .foot {
         border-top: 0;
         color: rgba(255, 255, 255, 0.85);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
-      .dock.bare .foot button,
-      .dock.bare .foot .version {
+      .dock.glass .foot button,
+      .dock.glass .foot .version {
         color: rgba(255, 255, 255, 0.85);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
       /* Settings needs its own opaque surface now that the dock has none. */
-      .dock.bare .sets {
+      .dock.glass .sets {
         background: #141417;
       }
 
-      /* Clear mode draws nothing but the tiles. The window is already
+      /* Classic mode draws nothing but the tiles. The window is already
          transparent, so removing the panel's background, border, shadow and
          radius is all it takes to see the desktop through. `.dock` also stops
          swallowing clicks: only its interactive children take pointer events, so
          the empty space beside the tiles stays click-through to whatever is
          underneath. */
-      .dock.clear {
+      .dock.classic {
         --glass: transparent;
         --glass-line: transparent;
         background: none;
@@ -625,32 +640,32 @@
         border-radius: 0;
         box-shadow: none;
       }
-      .dock.clear .top,
-      .dock.clear .foot,
-      .dock.clear .sets,
-      .dock.clear .tab {
+      .dock.classic .top,
+      .dock.classic .foot,
+      .dock.classic .sets,
+      .dock.classic .tab {
         pointer-events: auto;
       }
-      /* In clear mode the list itself must not eat clicks meant for the desktop
+      /* In classic mode the list itself must not eat clicks meant for the desktop
          — only the tiles are interactive. */
-      .dock.clear .stack {
+      .dock.classic .stack {
         pointer-events: none;
       }
       /* The header and footer keep their own small blurred chips so the search
          field and buttons stay legible against an arbitrary desktop. */
-      .dock.clear .search {
+      .dock.classic .search {
         background: rgba(18, 20, 30, 0.5);
         border-color: rgba(255, 255, 255, 0.14);
         color: #fff;
         backdrop-filter: blur(14px);
       }
-      .dock.clear .search::placeholder {
+      .dock.classic .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
       }
       /* The search toggle needs the same dark chip as the add and menu glyphs.
          Its base rule is a 6%-white chip with near-white ink, which disappears
-         against a light desktop in clear mode. */
-      .dock.clear .search-btn {
+         against a light desktop in classic mode. */
+      .dock.classic .search-btn {
         background: rgba(18, 20, 30, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.14);
         color: #fff;
@@ -658,35 +673,35 @@
       }
       /* Hover darkens rather than lightens. Adding white washed the chip out
          against a pale desktop and took the white glyph with it. */
-      .dock.clear .search-btn:hover {
+      .dock.classic .search-btn:hover {
         background: rgba(18, 20, 30, 0.78);
       }
 
-      .dock.clear .button {
+      .dock.classic .button {
         background: rgba(18, 20, 30, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.14);
         color: #fff;
         backdrop-filter: blur(14px);
       }
 
-      .dock.clear .button:hover {
+      .dock.classic .button:hover {
         background: rgba(18, 20, 30, 0.78);
       }
 
-      .dock.clear .foot {
+      .dock.classic .foot {
         border-top: 0;
         color: rgba(255, 255, 255, 0.85);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
-      .dock.clear .foot button,
-      .dock.clear .foot .version {
+      .dock.classic .foot button,
+      .dock.classic .foot .version {
         color: rgba(255, 255, 255, 0.85);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
 
-      /* Clear mode needs its own opaque panel behind settings: with no dock
+      /* Classic mode needs its own opaque panel behind settings: with no dock
          background there would be nothing behind the overlay. */
-      .dock.clear .sets {
+      .dock.classic .sets {
         background: rgba(24, 24, 27, 0.94);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 18px;
@@ -753,7 +768,7 @@
          104px tall, with the text fading in and the colour spine removed. The
          window is 320px (roomy) so three tiles fit per row and an expanded tile
          has 294px — enough for the title and a two-line preview. */
-      .dock.clear .stack {
+      .dock.classic .stack {
         padding: 6px 18px 20px 8px;
         /* 6px between tiles (was 10px): the column read as loose at nine+ notes. */
         gap: 6px;
@@ -764,7 +779,7 @@
            is already a column, so no flex-direction is needed here. */
         align-items: flex-start;
       }
-      .dock.clear .tab {
+      .dock.classic .tab {
         flex: 0 0 auto;
         /* Override the card gradient with a solid note colour. Declared with
            enough specificity to beat `.tab`'s own gradient. */
@@ -792,11 +807,11 @@
       }
       /* The colour spine belongs to the card layouts; a solid tile has no use
          for it. */
-      .dock.clear .tab::before {
+      .dock.classic .tab::before {
         display: none;
       }
-      .dock.clear .tab:hover,
-      .dock.clear .tab:focus-visible {
+      .dock.classic .tab:hover,
+      .dock.classic .tab:focus-visible {
         width: 100%;
         height: 88px;
         transform: none;
@@ -805,22 +820,22 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.5);
       }
       /* Text is hidden on the collapsed tile and fades in once expanded. */
-      .dock.clear .tab .title,
-      .dock.clear .tab .preview,
-      .dock.clear .tab .tabtime {
+      .dock.classic .tab .title,
+      .dock.classic .tab .preview,
+      .dock.classic .tab .tabtime {
         opacity: 0;
         transition: opacity 0.1s;
       }
-      .dock.clear .tab:hover .title,
-      .dock.clear .tab:hover .preview,
-      .dock.clear .tab:hover .tabtime,
-      .dock.clear .tab:focus-visible .title,
-      .dock.clear .tab:focus-visible .preview,
-      .dock.clear .tab:focus-visible .tabtime {
+      .dock.classic .tab:hover .title,
+      .dock.classic .tab:hover .preview,
+      .dock.classic .tab:hover .tabtime,
+      .dock.classic .tab:focus-visible .title,
+      .dock.classic .tab:focus-visible .preview,
+      .dock.classic .tab:focus-visible .tabtime {
         opacity: 1;
         transition: opacity 0.16s 0.1s;
       }
-      .dock.clear .tab .preview {
+      .dock.classic .tab .preview {
         color: rgba(28, 28, 34, 0.76);
         /* The dock's typewriter reveal animates `width` and forces nowrap,
            which would collapse the preview to a single clipped line inside a
@@ -830,15 +845,15 @@
         white-space: normal;
         border-right: 0;
       }
-      .dock.clear .tab .tabtime {
+      .dock.classic .tab .tabtime {
         color: rgba(28, 28, 34, 0.55);
       }
       /* A collapsed tile is a solid colour block, so the dark card text has to
          stay readable on the lightest palette entries too. */
-      .dock.clear .tab .title {
+      .dock.classic .tab .title {
         color: #1c1c22;
       }
-      .dock.clear .update {
+      .dock.classic .update {
         background: rgba(18, 20, 30, 0.72);
         border-color: rgba(255, 255, 255, 0.16);
         color: #fff;
@@ -1161,12 +1176,11 @@
           </div>
           <div class="srow col">
             <div>
-              <b>Dock background</b><small>Clear is coloured tiles. Glass adds a panel. Bare drops the panel but keeps the cards.</small>
+              <b>Dock background</b><small>Classic is coloured tiles. Glass is the same cards floating without a panel.</small>
             </div>
             <div class="seg wide" data-s="dockBg">
-              <button data-v="clear">Clear</button>
+              <button data-v="classic">Classic</button>
               <button data-v="glass">Glass</button>
-              <button data-v="bare">Bare</button>
             </div>
           </div>
           <div class="srow">
@@ -1357,9 +1371,18 @@
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", n.id);
           };
-          el.ondragend = () => {
+          el.ondragend = (e) => {
+            // Dragging outside the dock opens the note where it was released;
+            // released inside, it was a reorder and `drop` already handled it.
+            // The dock is a real window, so its bounds are the test: anything
+            // past them is the desktop the user dragged onto.
+            if (dragId && e.clientX !== 0 && e.clientY !== 0) {
+              const outside = outsideDock(e.clientX, e.clientY);
+              if (outside) window.tabbin.openAt(dragId, outside.x, outside.y);
+            }
             dragId = null;
             el.classList.remove("dragging");
+            dragHint.classList.remove("show");
             document
               .querySelectorAll(".drag-over")
               .forEach((x) => x.classList.remove("drag-over"));
@@ -1398,23 +1421,56 @@
       // A 2px difference, so switching modes does not make the dock jump. The
       // card height is content-driven, so this balance holds closely rather than
       // exactly as content changes.
-      const VISIBLE_BY_MODE = { clear: 6, glass: 4, bare: 4 };
+      const VISIBLE_BY_MODE = { classic: 6, glass: 4 };
       const DEFAULT_VISIBLE = 4;
       function visibleCount() {
-        // Apply the class to a detached element so reading it never mutates the
-        // live dock's class list mid-measurement.
-        const mode = root.classList.contains("glass")
-          ? "glass"
-          : root.classList.contains("bare")
-            ? "bare"
-            : "clear";
+        const mode = root.classList.contains("glass") ? "glass" : "classic";
         return VISIBLE_BY_MODE[mode] || DEFAULT_VISIBLE;
       }
       // Height of the first VISIBLE_COUNT cards including the gaps between them.
       // Measured, never guessed: cards are content-driven, so a hard-coded pixel
       // cap fits a different number of notes at every content length.
       function measureListCap() {
-        const stack = document.querySelector("#stack");
+        // --- Drag a tile out of the dock to open it --------------------------
+      // Dragging inside the dock reorders; dragging out past the dock's own
+      // bounds opens the note at the drop point. The dock window is only as
+      // large as the dock, so "outside" is simply off the window — no hit
+      // testing against the note list is needed.
+      const DRAG_MARGIN = 8;
+      function outsideDock(clientX, clientY) {
+        const r = dock.getBoundingClientRect();
+        // Right-docked mirrors the layout but not the maths: the window is
+        // still positioned by its real rect, so one comparison covers both.
+        const out =
+          clientX < r.left - DRAG_MARGIN ||
+          clientX > r.right + DRAG_MARGIN ||
+          clientY < r.top - DRAG_MARGIN ||
+          clientY > r.bottom + DRAG_MARGIN;
+        // Offset so the note's title bar lands near the cursor rather than its
+        // top-left corner, which is what a native window drag does.
+        return out ? { x: clientX, y: clientY } : null;
+      }
+      // "Release to open" follows the cursor while a tile is dragged out.
+      const dragHint = document.createElement("div");
+      dragHint.className = "droptip";
+      dragHint.textContent = "Release to open";
+      document.body.appendChild(dragHint);
+      document.addEventListener("dragover", (e) => {
+        if (!dragId) return;
+        const out = outsideDock(e.clientX, e.clientY);
+        dragHint.classList.toggle("show", !!out);
+        if (out) {
+          dragHint.style.left = e.clientX + 16 + "px";
+          dragHint.style.top = e.clientY + 16 + "px";
+        }
+      });
+      document.addEventListener("dragleave", () => dragHint.classList.remove("show"));
+      // A drop on the dock itself is a reorder, already handled per-card.
+      document.addEventListener("drop", (e) => {
+        if (dragId) e.preventDefault();
+      });
+
+      const stack = document.querySelector("#stack");
         if (!stack) return null;
         const cards = stack.querySelectorAll(":scope > .tab");
         if (!cards.length) return null;
@@ -1542,7 +1598,7 @@
         // Requested default. Existing installs fall back to this when their
         // config predates the setting, so upgrading changes their dock — that is
         // the intent, and Settings can put it back to glass in one click.
-        dockBg: "clear",
+        dockBg: "classic",
         saveLocation: "same",
       };
       // The main process owns these values and re-lays out the window, so the
@@ -1553,8 +1609,8 @@
         root.classList.toggle("right", cfg.edge === "right");
         // Exactly one background mode class at a time. The other two are removed
         // explicitly so switching modes cannot leave a stale tint behind.
-        root.classList.remove("clear", "glass", "bare");
-        root.classList.add(cfg.dockBg === "glass" || cfg.dockBg === "bare" ? cfg.dockBg : "clear");
+        root.classList.remove("classic", "glass");
+        root.classList.add(cfg.dockBg === "glass" ? "glass" : "classic");
         document.querySelectorAll(".seg[data-s]").forEach((seg) => {
           const key = seg.dataset.s;
           seg.querySelectorAll("button").forEach((btn) => {
@@ -1607,7 +1663,7 @@
           edge: "left",
           edgeHover: true,
           dockWidth: "compact",
-          dockBg: "clear",
+          dockBg: "classic",
           saveLocation: "same",
           launchOnStartup: false,
         });
