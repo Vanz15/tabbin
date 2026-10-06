@@ -31,7 +31,7 @@ reorder.
 - **Drag a note out to open it** — pull a tile off the dock and it opens where you drop it; drag around inside the dock to reorder instead
 - **Settings panel** — dock side, appearance, auto-hide, dock width, launch-on-startup, save location, and clear-all-notes, behind one menu
 - **Find your notes** — Settings shows the folder your notes live in, with one button to open it and another to move them
-- **Right-edge docking** — the layout mirrors, so notes grow away from the edge and the header aligns to it
+- **Configurable dock side** — Settings → Dock side switches activation between the left and right screen edge; the layout mirrors, so notes grow away from the edge and the header aligns to it
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
 - **Concise header** — search, add, and menu; search expands in place when you want it
 - **Note windows match the dock** — classic opens a solid sheet of the note colour with dark text, glass keeps the dark window
@@ -43,7 +43,7 @@ reorder.
 - **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from a five-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
-- **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
+- **Portable and installer builds** — an NSIS installer for Windows, plus a no-install portable executable
 
 ## Getting started
 
