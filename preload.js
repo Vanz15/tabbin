@@ -7,7 +7,6 @@ contextBridge.exposeInMainWorld('tabbin', {
   reorder: ids => ipcRenderer.invoke('notes:reorder', ids),
   remove: id => ipcRenderer.invoke('notes:delete', id),
   clear: confirm => ipcRenderer.invoke('notes:clear', confirm),
-  setSaveLocation: dir => ipcRenderer.invoke('config:set', { saveLocation: dir }),
   pickFolder: () => ipcRenderer.invoke('dialog:browse-folder'),
   showNotesFolder: () => ipcRenderer.invoke('shell:show-notes-folder'),
   open: id => ipcRenderer.invoke('notes:open', id),

@@ -377,8 +377,7 @@ function openNote(id, at) {
     icon: appIcon(),
     autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
-  window.setResizable(true);
-  if (at) {
+    if (at) {
     const [w] = window.getSize();
     window.setPosition(Math.round(at.x - w / 2), Math.round(at.y - 20), false);
   }
