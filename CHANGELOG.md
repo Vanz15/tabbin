@@ -52,6 +52,22 @@ moved and upgrading preserves existing notes and settings.
 
 ### Fixed
 
+- **The search toggle was invisible in Clear and Bare mode.** It had no
+  mode-specific rule, so it kept a 6%-white chip with a near-white glyph while
+  the add and menu buttons beside it were given dark chips. On a pale desktop
+  the magnifier could not be seen at all.
+- **The header buttons vanished on hover in Clear and Bare.** The hover state
+  added a white overlay to the dark chip, which washed it toward white on a
+  light desktop — and took the white glyph with it, so the control you were
+  pointing at was the one thing you could not see. Hover now raises the chip's
+  own opacity instead.
+- **Excessive shadow in the transparent modes.** Clear-mode tiles cast
+  `0 6px 18px rgba(0,0,0,0.28)` at rest and more on hover, the overflow menu
+  cast `0 18px 44px rgba(0,0,0,0.5)`, the settings view used
+  `0 28px 70px rgba(0,0,0,0.45)`, and the footer text was shadowed at 0.5
+  alpha. Against a light desktop this read as haze around the whole dock.
+  Resting tiles are now flat colour with the lift applied on hover, and the
+  menu carries no shadow at all.
 - **Settings rendered horizontally, off both edges of the panel.** Four rows
   were missing a closing `</div>`, so each nested inside the previous one, and
   because a row is a flex container they laid out side by side.
