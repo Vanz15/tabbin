@@ -96,10 +96,10 @@
       .search {
         flex: 1;
         min-width: 0;
-        height: 34px;
+        height: 30px;
         padding: 0 10px;
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 10px;
+        border-radius: 8px;
         background: rgba(255, 255, 255, 0.06);
         color: var(--ink);
         font-family: var(--font);
@@ -124,15 +124,18 @@
         flex: 1;
         min-width: 0;
       }
+      /* Sized to match .button (the new-note control) so the three header
+         glyphs are identical. They were 34px against 30px, which read as a
+         mismatch rather than a deliberate choice. */
       .search-btn {
         flex: 0 0 auto;
-        width: 34px;
-        height: 34px;
+        width: 30px;
+        height: 30px;
         display: flex;
         align-items: center;
         justify-content: center;
         border: 0;
-        border-radius: 10px;
+        border-radius: 8px;
         background: rgba(255, 255, 255, 0.06);
         color: var(--ink);
         cursor: pointer;
@@ -1235,7 +1238,7 @@
               <b>Clear all notes</b><small>Deletes every note. Cannot be undone</small>
             </div>
             <button id="clearAll" class="button quit" title="Clear all notes" aria-label="Clear all notes">
-              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
         </div>

@@ -434,6 +434,14 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
 app.on('window-all-closed', event => event.preventDefault());
 
 ipcMain.handle('app:quit', () => app.quit());
+// config:get and config:set must return the SAME shape. The renderer merges
+// whatever comes back over its own cfg, so returning the bare config from
+// config:set silently erased notesPath and left the save-location row stuck on
+// its unresolved state after every settings change.
+function configPayload(config) {
+  return { ...config, palette, notesPath: dataFile() };
+}
+
 ipcMain.handle('config:get', () => {
   const config = loadConfig();
   // Never hand the renderer a value it would put straight into classList.add().
@@ -444,7 +452,7 @@ ipcMain.handle('config:get', () => {
     config.dockBg = migrated;
     saveConfig(config);
   }
-  return { ...config, palette, notesPath: dataFile() };
+  return configPayload(config);
 });
 // Settings persist immediately and re-layout the dock, so a change to the
 // activation edge or width is visible without a restart.
@@ -496,8 +504,9 @@ ipcMain.handle('config:set', (_, patch) => {
   saveConfig(next);
   layout();
   // The renderer mirrors the edge with a class, so it has to be told.
-  if (dock && !dock.isDestroyed()) dock.webContents.send('config:changed', next);
-  return next;
+  const payload = configPayload(next);
+  if (dock && !dock.isDestroyed()) dock.webContents.send('config:changed', payload);
+  return payload;
 });
 ipcMain.handle('updates:status', () => updater.snapshot());
 ipcMain.handle('updates:check', () => updater.check());

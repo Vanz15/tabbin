@@ -1027,6 +1027,53 @@ assert.match(
   'a missing path falls back to empty, not to a fake location string',
 );
 assert.match(dock, /Loading…/, 'the unresolved state is explicit rather than a wrong answer');
+// The real cause of a permanent "Loading…": config:set returned the bare
+// config while config:get returned an enriched payload. The renderer merges
+// whatever it gets back over its own cfg, so a payload with no notesPath ERASED
+// the one it already had — and any settings change stuck the row unresolved.
+assert.match(
+  main,
+  /function configPayload\(config\) \{[\s\S]*?return \{ \.\.\.config, palette, notesPath: dataFile\(\) \};/,
+  'one payload shape is shared by both config handlers',
+);
+assert.match(
+  main,
+  /ipcMain\.handle\('config:get',[\s\S]{0,600}?return configPayload\(config\);/,
+  'config:get returns the shared payload',
+);
+assert.match(
+  main,
+  /ipcMain\.handle\('config:set',[\s\S]*?return payload;/,
+  'config:set returns the shared payload too, not the bare config',
+);
+assert.doesNotMatch(
+  main,
+  /send\('config:changed', next\)/,
+  'the broadcast must carry the same shape as the return value',
+);
+
+// --- Header controls are one size -----------------------------------------
+// The search control was 34px against the new-note button's 30px, and its
+// corner radius differed too, so the three glyphs did not read as a set.
+for (const sel of ['.button', '.search-btn']) {
+  const b = ruleBody(dock, sel + ' {');
+  assert.match(b, /width: 30px;/, `${sel} must be 30px wide`);
+  assert.match(b, /height: 30px;/, `${sel} must be 30px tall`);
+  assert.match(b, /border-radius: 8px;/, `${sel} must share the same corner radius`);
+}
+assert.match(ruleBody(dock, '.search {'), /height: 30px;/, 'the expanded field matches its control');
+
+// --- Clear-all is a trash can ---------------------------------------------
+assert.match(
+  dock,
+  /id="clearAll"[\s\S]*?<path d="M4 7h16M10 4h4/,
+  'clear all notes uses a trash can, not an X',
+);
+assert.doesNotMatch(
+  dock,
+  /id="clearAll"[\s\S]*?M6 6l12 12M18 6 6 18/,
+  'the old X glyph for clear-all is gone',
+);
 assert.match(
   dock,
   /label\.textContent = folder;/,
