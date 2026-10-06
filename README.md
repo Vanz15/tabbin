@@ -43,7 +43,7 @@ reorder.
 - **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from a five-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
-- **Portable and installer builds** — an NSIS installer for Windows, plus a no-install portable executable
+- **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
 
 ## Getting started
 
