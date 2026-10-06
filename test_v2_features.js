@@ -1074,10 +1074,22 @@ assert.doesNotMatch(
   /id="clearAll"[\s\S]*?M6 6l12 12M18 6 6 18/,
   'the old X glyph for clear-all is gone',
 );
+// notesPath is the notes FILE, so its last segment is "notes.json". Showing
+// that told the user nothing — the label has to name the directory.
 assert.match(
   dock,
+  /const dir = parts\.length > 1 \? parts\.slice\(0, -1\)\.join\([\s\S]{0,12}\) : path;/,
+  'the label drops the filename and shows the directory holding it',
+);
+assert.doesNotMatch(
+  dock,
   /label\.textContent = folder;/,
-  'the row shows the folder name, which is the part a user recognises',
+  'the old last-segment logic showed notes.json rather than the folder',
+);
+assert.match(
+  ruleBody(dock, '#saveLocLabel {'),
+  /direction: rtl;/,
+  'a long path clips from the left so the folder name stays visible',
 );
 assert.match(dock, /row\.title = path;/, 'the full path stays available in the tooltip');
 assert.match(

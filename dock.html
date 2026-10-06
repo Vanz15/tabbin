@@ -978,6 +978,11 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        /* Clip from the LEFT so the tail — the folder name — stays visible when
+           the path is too long for the row. Without this a deep path hides the
+           one part the user is looking for. */
+        direction: rtl;
+        text-align: left;
       }
       /* Reveal and Change sit side by side, so the row's own controls column has
          to allow for two buttons instead of one. */
@@ -1647,12 +1652,16 @@
           document.querySelector("#saveLocRow").title = "";
           return;
         }
-        // The full path is long and the dock is narrow, so show the tail — the
-        // folder name is the part a user recognises. The full path stays in the
-        // tooltip and is exposed to assistive tech via the title.
+        // notesPath is the notes FILE, so its last segment is "notes.json" —
+        // showing that told the user nothing. Drop the filename and show the
+        // directory that actually holds it. The full path stays in the tooltip
+        // and is exposed to assistive tech via the title.
         const parts = path.split(/[\\/]/).filter(Boolean);
-        const folder = parts[parts.length - 1] || path;
-        label.textContent = folder;
+        // A bare filename with no directory means the default location; show it
+        // as-is rather than producing an empty label.
+        const dir = parts.length > 1 ? parts.slice(0, -1).join("\\") : path;
+        label.textContent = dir;
+        label.setAttribute("title", path);
         label.title = path;
         const row = document.querySelector("#saveLocRow");
         row.title = path;
