@@ -28,7 +28,7 @@
            These are the per-mode values; `.dock` carries the active mode class.
            - glass : the 2.0.0 treatment, near-opaque panel behind glass cards
          - bare  : the same glass cards with no panel behind them
-         - clear : no panel at all; only coloured note tiles, expanding on hover */
+         - classic : no panel at all; only coloured note tiles, expanding on hover */
         --glass: rgba(20, 20, 23, 0.96);
         --glass-line: rgba(255, 255, 255, 0.09);
         --glass-hi: rgba(255, 255, 255, 0.08);
@@ -524,7 +524,7 @@
          class on .dock set from the config value `dockBg`; only the presentation
          changes, never the markup, so all features work in every mode.
 
-         clear   - no panel. Notes become compact tiles that expand on hover.
+         classic - no panel. Notes become compact tiles that expand on hover.
          glass   - the near-opaque 2.0.0 treatment. */
       /* Frosted is Clear's tile layout with a translucent panel dropped behind
          it, so the desktop tints the surface. There is still no real blur: this
@@ -751,18 +751,18 @@
       .dock.right .update {
         text-align: right;
       }
-      /* Clear-mode tiles are flush-left by default; on the right they sit flush
+      /* Classic tiles are flush-left by default; on the right they sit flush
          right so the column hugs the edge instead of leaving a gap on the
          outer side. */
-      .dock.right.clear .stack {
+      .dock.right.classic .stack {
         padding: 6px 8px 24px 18px;
         align-items: flex-end;
       }
-      .dock.right.clear .tab {
+      .dock.right.classic .tab {
         padding: 10px 14px;
       }
 
-      /* --- Clear-mode tiles -------------------------------------------
+      /* --- Classic tiles ---------------------------------------------
          Compact coloured tiles that expand into a full card on hover, faithful
          to the mockup: 76x62 collapsed, expanding to the full list width and
          104px tall, with the text fading in and the colour spine removed. The
@@ -1371,15 +1371,11 @@
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", n.id);
           };
-          el.ondragend = (e) => {
-            // Dragging outside the dock opens the note where it was released;
-            // released inside, it was a reorder and `drop` already handled it.
-            // The dock is a real window, so its bounds are the test: anything
-            // past them is the desktop the user dragged onto.
-            if (dragId && e.clientX !== 0 && e.clientY !== 0) {
-              const outside = outsideDock(e.clientX, e.clientY);
-              if (outside) window.tabbin.openAt(dragId, outside.x, outside.y);
-            }
+          el.ondragend = () => {
+            // Let the main process decide: it reads the true screen cursor, so
+            // it can tell a drop on the desktop from a drop that reordered.
+            // Passing the note id is enough — the hint is hidden either way.
+            if (dragId) window.tabbin.dropNote(dragId);
             dragId = null;
             el.classList.remove("dragging");
             dragHint.classList.remove("show");
@@ -1433,39 +1429,25 @@
       function measureListCap() {
         // --- Drag a tile out of the dock to open it --------------------------
       // Dragging inside the dock reorders; dragging out past the dock's own
-      // bounds opens the note at the drop point. The dock window is only as
-      // large as the dock, so "outside" is simply off the window — no hit
-      // testing against the note list is needed.
-      const DRAG_MARGIN = 8;
-      function outsideDock(clientX, clientY) {
-        const r = dock.getBoundingClientRect();
-        // Right-docked mirrors the layout but not the maths: the window is
-        // still positioned by its real rect, so one comparison covers both.
-        const out =
-          clientX < r.left - DRAG_MARGIN ||
-          clientX > r.right + DRAG_MARGIN ||
-          clientY < r.top - DRAG_MARGIN ||
-          clientY > r.bottom + DRAG_MARGIN;
-        // Offset so the note's title bar lands near the cursor rather than its
-        // top-left corner, which is what a native window drag does.
-        return out ? { x: clientX, y: clientY } : null;
-      }
-      // "Release to open" follows the cursor while a tile is dragged out.
+      // bounds opens the note where it was released.
+      //
+      // The renderer cannot make that decision itself. Once the cursor leaves
+      // the dock window Chromium stops delivering `dragover`, and the
+      // coordinates on `dragend` are clamped to the window, so a
+      // getBoundingClientRect comparison here can never see a point outside —
+      // which is why an earlier version of this looked right and did nothing.
+      // The main process owns the real screen cursor and the dock's real
+      // bounds, so it makes the call. The renderer only reports that a drag of
+      // a particular note finished.
       const dragHint = document.createElement("div");
       dragHint.className = "droptip";
       dragHint.textContent = "Release to open";
       document.body.appendChild(dragHint);
+      // While the cursor is still over the dock, `dragover` fires normally and
+      // the per-card handlers do the reordering. Nothing to do here.
       document.addEventListener("dragover", (e) => {
-        if (!dragId) return;
-        const out = outsideDock(e.clientX, e.clientY);
-        dragHint.classList.toggle("show", !!out);
-        if (out) {
-          dragHint.style.left = e.clientX + 16 + "px";
-          dragHint.style.top = e.clientY + 16 + "px";
-        }
+        if (dragId) e.preventDefault();
       });
-      document.addEventListener("dragleave", () => dragHint.classList.remove("show"));
-      // A drop on the dock itself is a reorder, already handled per-card.
       document.addEventListener("drop", (e) => {
         if (dragId) e.preventDefault();
       });

@@ -524,9 +524,30 @@ ipcMain.handle('notes:open', (_, id) => openNote(id));
 // Opened by dragging a tile out of the dock. The renderer sends client coords;
 // they are converted to screen coords here so the window lands under the cursor
 // regardless of where the dock itself sits.
-ipcMain.handle('notes:open-at', (_, id, clientX, clientY) => {
-  const [dx, dy] = dock && !dock.isDestroyed() ? dock.getPosition() : [0, 0];
-  return openNote(id, { x: clientX + dx, y: clientY + dy });
+// A tile drag finished. Decide here whether that was a reorder (dropped on the
+// dock) or a request to open the note (dropped anywhere else), because only the
+// main process can read the real cursor once it has left the dock window —
+// screen.getCursorScreenPoint() is not clipped to the dock's own bounds.
+const DROP_MARGIN = 8;
+ipcMain.handle('dock:note-dropped', (_, id) => {
+  if (!dock || dock.isDestroyed()) return false;
+  const cursor = screen.getCursorScreenPoint();
+  const [dx, dy] = dock.getPosition();
+  const [dw, dh] = dock.getSize();
+  const outside =
+    cursor.x < dx - DROP_MARGIN ||
+    cursor.x > dx + dw + DROP_MARGIN ||
+    cursor.y < dy - DROP_MARGIN ||
+    cursor.y > dy + dh + DROP_MARGIN;
+  if (!outside) return false;
+  // The cursor may be on a second monitor, so clamp to the work area of the
+  // display it is actually on rather than the primary one.
+  const bounds = screen.getDisplayNearestPoint(cursor).workArea;
+  openNote(id, {
+    x: Math.min(Math.max(cursor.x, bounds.x), bounds.x + bounds.width - 80),
+    y: Math.min(Math.max(cursor.y - 20, bounds.y), bounds.y + bounds.height - 40)
+  });
+  return true;
 });
 ipcMain.handle('notes:toggle-always-on-top', async (_, id) => {
   const notes = loadNotes(); const index = notes.findIndex(note => note.id === id); if (index < 0) return null;

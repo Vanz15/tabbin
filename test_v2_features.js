@@ -156,48 +156,54 @@ assert.match(dock, /\.dock\.classic \{[\s\S]*?background: none;/);
 
 // --- Drag a tile out of the dock to open it --------------------------------
 // Dragging inside the dock is a reorder; releasing past the dock's own bounds
-// opens the note where it was dropped. The dock window is exactly as large as
-// the dock, so "outside" is off-window — no hit testing needed.
-assert.match(dock, /function outsideDock\(clientX, clientY\)/, 'drag-out needs a bounds test');
+// opens the note. The decision is made in the MAIN process, not the renderer:
+// once the cursor leaves the dock window Chromium stops delivering `dragover`
+// and clamps `dragend` coordinates to the window, so a renderer-side
+// getBoundingClientRect test can never see a point outside. That is why the
+// first version of this looked correct and did nothing.
+assert.match(
+  main,
+  /ipcMain\.handle\('dock:note-dropped'/,
+  'the drop decision belongs to the main process, which can read the real cursor',
+);
+assert.match(
+  main,
+  /const cursor = screen\.getCursorScreenPoint\(\);/,
+  'the main process must read the true screen cursor',
+);
+assert.doesNotMatch(
+  dock,
+  /function outsideDock/,
+  'the renderer must not attempt its own out-of-bounds test',
+);
 assert.match(
   dock,
-  /return out \? \{ x: clientX, y: clientY \} : null;/,
-  'outsideDock returns the drop point or null, so the caller can branch',
+  /el\.ondragend = \(\) => \{[\s\S]*?window\.tabbin\.dropNote\(dragId\);/,
+  'the card reports the finished drag and lets the main process decide',
 );
-// The hint is what tells the user the drop will open rather than reorder.
-assert.match(dock, /class=\\?"droptip|\.droptip/, 'a drag-out hint element must exist');
+assert.match(preload, /dropNote: id => ipcRenderer\.invoke\('dock:note-dropped', id\)/);
+// The hint must still exist — it is the only feedback that releasing will open.
+assert.match(dock, /\.droptip/, 'a drag-out hint element must exist');
 assert.match(dock, /Release to open/, 'the hint says what releasing will do');
-assert.match(
-  dock,
-  /dragHint\.classList\.toggle\("show", !!out\)/,
-  'the hint only shows while the cursor is actually outside the dock',
+assert.doesNotMatch(
+  main,
+  /notes:open-at/,
+  'the client-coordinate path is gone; it could not see outside the window',
 );
-// dragend is the decision point: it must not fire when the drop was a no-op.
-assert.match(
-  dock,
-  /el\.ondragend = \(e\) => \{[\s\S]*?if \(outside\) window\.tabbin\.openAt\(dragId, outside\.x, outside\.y\);/,
-  'dragend opens the note when released outside the dock',
-);
-assert.match(
-  dock,
-  /if \(dragId && e\.clientX !== 0 && e\.clientY !== 0\)/,
-  'a synthetic dragend with no cursor position must not open anything',
-);
-// The IPC path has to convert client coords to screen coords, or the window
-// lands at the wrong place whenever the dock is not at the screen origin.
-assert.match(preload, /openAt: \(id, x, y\) => ipcRenderer\.invoke\('notes:open-at', id, x, y\)/);
-assert.match(main, /ipcMain\.handle\('notes:open-at'/);
+// The cursor may be over a second monitor, so placement is clamped to the work
+// area of the display the cursor is actually on. Both dock edges are covered by
+// the dock's own bounds, so nothing here may assume a left edge.
 assert.match(
   main,
-  /openNote\(id, \{ x: clientX \+ dx, y: clientY \+ dy \}\)/,
-  'notes:open-at must offset client coords by the dock window position',
+  /screen\.getDisplayNearestPoint\(cursor\)\.workArea/,
+  'place the window on whichever display the cursor is on',
 );
-// openNote has to honour the position for a new window and an existing one.
 assert.match(
   main,
-  /function openNote\(id, at\)/,
-  'openNote accepts a drop position',
+  /openNote\(id, \{[\s\S]*?x: Math\.min\(Math\.max\(cursor\.x/,
+  'the window position is clamped to the work area',
 );
+assert.match(main, /function openNote\(id, at\)/, 'openNote accepts a drop position');
 assert.match(
   main,
   /if \(at\) \{[\s\S]*?window\.setPosition\([\s\S]*?\);[\s\S]*?\n  \}/,
@@ -231,6 +237,21 @@ assert.match(
   'the note window applies the classic variant for anything that is not glass',
 );
 assert.match(note, /\.classic \{[\s\S]*?--ink: #1c1c22;/, 'classic notes use dark ink');
+// The note body had `color: #e4e4e8` hardcoded rather than the --ink token, so
+// the classic variant's dark ink never reached the text — the window came up
+// light-on-light. Every colour the mode decides has to come from a token.
+assert.match(
+  note,
+  /\.editor \{[\s\S]*?color: var\(--ink\);/,
+  'the editor must take its colour from the ink token, not a hardcoded value',
+);
+for (const hard of ['#e4e4e8']) {
+  assert.doesNotMatch(
+    note,
+    new RegExp(`color: ${hard}`, 'g'),
+    `${hard} is a light-on-dark value and must not be hardcoded anywhere on the note page`,
+  );
+}
 assert.match(
   dock,
   /\.dock\.classic \.stack \{[\s\S]*?pointer-events: none;/,
@@ -512,7 +533,18 @@ assert.doesNotMatch(main, /const y = display\.workArea\.y;/,
 // exists, so the class cannot silently become a no-op again.
 assert.match(dock, /\.dock\.right \.tab \{[\s\S]*?padding:/);
 assert.match(dock, /\.dock\.right \.tab::before \{[\s\S]*?right: 6px;/);
-assert.match(dock, /\.dock\.right\.clear \.stack \{[\s\S]*?align-items: flex-end;/);
+assert.match(
+  dock,
+  /\.dock\.right\.classic \.stack \{[\s\S]*?align-items: flex-end;/,
+  'classic tiles on the right edge hug the edge',
+);
+// A compound selector that names a dead mode loses its rules silently when the
+// mode is renamed, and a regex on the old text keeps passing. Guard the whole
+// stylesheet instead: nothing may name a mode that no longer exists.
+for (const dead of ['clear', 'bare']) {
+  const stale = dock.match(new RegExp(`\\.dock(\\.[a-z]+)*\\.${dead}[\\s,{]`, 'g'));
+  assert.equal(stale, null, `no CSS selector may name the removed mode '${dead}': ${stale}`);
+}
 // The hide chevron has two paths and CSS shows exactly one per edge.
 assert.match(dock, /class="chev chev-l"/);
 assert.match(dock, /class="chev chev-r"/);

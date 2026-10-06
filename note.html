@@ -235,7 +235,9 @@
         background: transparent;
         border: 0;
         outline: none;
-        color: #e4e4e8;
+        /* Was hardcoded #e4e4e8, which is why the classic variant's ink tokens
+           never reached the note body. Use the token so the mode decides. */
+        color: var(--ink);
         font: 14px/1.65 Inter, "Segoe UI", sans-serif;
         overflow: auto;
         white-space: pre-wrap;
