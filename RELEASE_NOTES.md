@@ -1,57 +1,50 @@
-## Tabbin v2.2.1 — back to classic, and drag out to open
+## Tabbin v2.2.2 — keyboard shortcuts, and findable notes
 
-The dock goes back to the classic coloured-note look, drops to two appearances,
-and a tile can now be dragged out of the dock to open.
-
-No data format changed, so upgrading preserves your existing notes and settings.
+Editor keyboard shortcuts, and a Save location row that tells you where your
+notes actually are. No data format changed.
 
 ### Added
 
-- **Drag a tile out of the dock to open that note**, where it was released. A
-  "Release to open" hint follows the cursor while you drag. Released back inside
-  the dock it is still a reorder, so the existing drag-to-reorder is untouched.
-  Works from either screen edge.
+- **Align left / centre / right** — `Ctrl+L`, `Ctrl+E`, `Ctrl+R`
+- **Strikethrough** — `Ctrl+Alt+S`, which has no native browser binding
+- **Indent and outdent** — `Tab` and `Shift+Tab` inside a list. Outside a list
+  `Tab` still moves focus out of the note, as it always did.
+- **Automatic lists** — type `1. ` or `- ` at the start of a block to turn it
+  into a numbered or bulleted list. Typing the marker inside an existing list
+  does not nest a new one.
+- **Open the save folder** — a button that reveals where notes are stored,
+  separate from the control that changes it.
+
+Bold, italic and underline were already handled by the browser's own shortcuts
+and are unchanged.
+
 ### Changed
 
-- **The dock has two appearances instead of three.**
-  - `classic` — coloured note tiles that expand on hover. Previously `clear`.
-  - `glass` — the same cards floating without a panel behind them. Previously
-    `bare`.
-  - The near-opaque panel mode is gone. It had no successor in user feedback,
-    which asked for the classic look back.
-- **Note windows follow the dock's appearance.** Classic notes open as a solid
-  sheet of the note colour with dark text; glass notes keep the dark window.
-- **Settings offers Classic and Glass.**
+- **Clear all notes** now uses a trash can instead of an X.
+- **The three header controls are the same size.** Search was 34px against the
+  new-note button's 30px, with a different corner radius, so the glyphs did not
+  read as a set. All three are 30px with an 8px radius, and the expanded search
+  field matches.
 
 ### Fixed
 
-- **Dragging a tile out of the dock did nothing.** The bounds test lived in the
-  renderer, comparing drag coordinates against the dock's own rect — but once
-  the cursor leaves the dock window, Chromium stops delivering drag events and
-  clamps the coordinates to the window, so no point outside was ever visible
-  there. The decision now happens in the main process, which reads the true
-  cursor position and compares it against the dock's real bounds. A window
-  dropped on a second monitor opens on that monitor.
-- **The right edge stopped mirroring after the mode rename.** Two rules were
-  compound selectors, `.dock.right.clear`, and renaming the plain `.dock.clear`
-  selector never matched them, so they silently stopped applying and notes grew
-  left-to-right again.
-- **Active formatting was invisible in classic mode.** Bold, italic and
-  strikethrough were drawn in the note colour, which on a classic note window is
-  the colour of the sheet they sit on. The glyph now follows the page's ink
-  colour, so it darkens on the light sheet.
-- **Toolbar borders, separators and hover fills were white on the classic
-  sheet**, where they read as dirt rather than as surfaces.
-- **The note body ignored the classic appearance** because its colour was
-  hardcoded instead of following the page's ink token.
-
-Note storage, the note editor, auto-update and the settings panel are unchanged
-apart from the mode rename.
+- **Settings showed the settings icon as a brightness glyph.** It was a bare
+  ring plus eight short radial strokes, which at 16px is indistinguishable from a
+  sun icon. It is now a toothed cog outline with a centre bore.
+- **Save location read "Unknown location".** The settings panel painted once
+  before the configuration arrived, wrote the placeholder, and nothing repainted
+  it afterwards.
+- **Save location read "Loading…" forever after changing it.** The read and write
+  config handlers returned different shapes, and the renderer merges whatever it
+  receives over its own config — so a response with no path in it erased the path
+  it already had. Both handlers now return the same shape.
+- **Save location showed "notes.json".** The path is the notes file, so taking
+  its last segment gave the filename rather than the folder. It now shows the
+  directory, clipping from the left so the folder name stays visible on a long
+  path.
 
 ### Notes
 
-- A `dockBg` from 2.1.0 or earlier is migrated on first launch rather than
-  reset, so you keep the appearance you chose.
 - Auto-update still applies to the installed build only; the portable executable
   cannot replace itself.
 - Tabbin is not code signed, so Windows SmartScreen may warn you when installing
@@ -59,15 +52,15 @@ apart from the mode rename.
 
 ### Download Links
 
-- [Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.1/Tabbin-Setup.exe) — installed build, receives updates
-- [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.1/Tabbin-Portable.exe) — no install, no auto-update
+- [Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.2/Tabbin-Setup.exe) — installed build, receives updates
+- [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.2/Tabbin-Portable.exe) — no install, no auto-update
 
 ### Checksums
 
 <!-- Digests of the assets GitHub actually stored, not the local dist/.
-     `npm run verify:feed -- --tag v2.2.1` checks these against the published
+     `npm run verify:feed -- --tag v2.2.2` checks these against the published
      files and fails on a mismatch. -->
 
-- `Tabbin-Setup.exe`: `2ee3d7bcc36b8b793f43fb8089f32f62a1c1c2d7f8f3befc988d834374863469`
-- `Tabbin-Portable.exe`: `0b6545156334976d9d0403b9e15262c2a2fb37e345ce65f5df2e3e23c4679eca`
+- `Tabbin-Setup.exe`: `3bd4bb3b0a279691e85a55a386cfda1c878e7a7559363985d91b5dde8014d1b4`
+- `Tabbin-Portable.exe`: `bdcfa8651ff00bd08b764b4f6dc2abc471fc253e24ab61a8f4aaf63b8a00a1bb`
 
