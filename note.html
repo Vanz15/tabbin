@@ -65,6 +65,66 @@
           0 2px 8px rgba(0, 0, 0, 0.3);
         overflow: hidden;
       }
+      /* Classic mode: the note window is a solid sheet of the note colour with
+         dark ink, matching the classic dock tiles. Defined entirely through the
+         existing custom properties so no other rule needs a mode variant.
+         `.classic` is set on <html> from the `bg` query param. */
+      .classic {
+        --ink: #1c1c22;
+        --ink2: rgba(28, 28, 34, 0.62);
+        --ink3: rgba(28, 28, 34, 0.46);
+        --glass-line: rgba(0, 0, 0, 0.08);
+        --glass-hi: rgba(255, 255, 255, 0.5);
+      }
+      .classic .wrap {
+        background: linear-gradient(
+          150deg,
+          var(--c),
+          color-mix(in srgb, var(--c) 80%, #fff)
+        );
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          0 12px 30px rgba(0, 0, 0, 0.28);
+      }
+      /* Hover fills were white-on-dark; on a light sheet they read as dirt. */
+      .classic .ib:hover {
+        background: rgba(0, 0, 0, 0.07);
+        color: #1c1c22;
+      }
+      .classic .tool:hover {
+        background: rgba(0, 0, 0, 0.06);
+      }
+      /* The toolbar's top border and the separator between groups were white at
+         low alpha, which is invisible on the light sheet. */
+      .classic .toolbar {
+        border-top-color: rgba(28, 28, 34, 0.14);
+      }
+      .classic .toolbar .sep {
+        background: rgba(28, 28, 34, 0.16);
+      }
+      .classic .editor {
+        scrollbar-color: rgba(28, 28, 34, 0.25) transparent;
+      }
+      .classic .ib.on {
+        color: #1c1c22;
+      }
+      .classic .ib.danger:hover {
+        background: rgba(0, 0, 0, 0.09);
+        color: #a4322a;
+      }
+      /* The title underline was a tint of the note colour, which vanishes on a
+         sheet of that same colour, and the focus colour was the note colour. */
+      .classic .title {
+        border-bottom-color: rgba(28, 28, 34, 0.22);
+      }
+      .classic .title:focus {
+        border-bottom-color: rgba(28, 28, 34, 0.45);
+      }
+      /* Save-status dot is a white ring on dark; needs a dark ring on light. */
+      .classic .status .st::before {
+        box-shadow: 0 0 0 1px rgba(28, 28, 34, 0.18);
+      }
+
       /* Custom chrome bar: drag handle plus pin and close, as in the mockup */
       .bar {
         flex: 0 0 auto;
@@ -189,7 +249,9 @@
         background: transparent;
         border: 0;
         outline: none;
-        color: #e4e4e8;
+        /* Was hardcoded #e4e4e8, which is why the classic variant's ink tokens
+           never reached the note body. Use the token so the mode decides. */
+        color: var(--ink);
         font: 14px/1.65 Inter, "Segoe UI", sans-serif;
         overflow: auto;
         white-space: pre-wrap;
@@ -253,10 +315,13 @@
         background: rgba(255, 255, 255, 0.08);
         color: var(--ink);
       }
-      /* Active formatting command reflects the caret's current state */
+      /* Active formatting command reflects the caret's current state.
+         The glyph is --ink, never the note colour: in classic mode the window
+         is a sheet of that same colour, so a --c glyph on it was invisible. The
+         tinted chip behind it still marks the command as active. */
       .tool.active {
         background: color-mix(in srgb, var(--c) 24%, transparent);
-        color: var(--c);
+        color: var(--ink);
       }
       .toolbar .sep {
         width: 1px;
@@ -364,6 +429,10 @@
     </main>
     <script>
       const params = new URLSearchParams(location.search);
+      // Follow the dock's appearance. The main process migrates any pre-2.2
+      // name before sending it, so anything that is not 'glass' is classic —
+      // the window must never be left without a variant.
+      document.documentElement.classList.toggle('classic', params.get('bg') !== 'glass');
       const id = params.get('id');
       // The main process owns the palette so the dots and the colours it
       // assigns to new notes can never drift apart.

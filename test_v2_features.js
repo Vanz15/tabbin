@@ -111,36 +111,223 @@ assert.match(main, /saveNotes\(\[\]\)/, 'clear-all empties the notes file');
 assert.match(preload, /clear: confirm => ipcRenderer\.invoke\('notes:clear', confirm\)/);
 
 // --- Dock background modes (v2.1) ---------------------------------------
-// Three selectable appearances: clear (no panel, tiles that expand on hover),
-// bare (glass cards, no panel) and glass (the 2.0.0 treatment). The value is
-// validated in the main process because the renderer feeds it to classList.add().
-assert.match(main, /const DOCK_BACKGROUNDS = \['clear', 'glass', 'bare'\]/);
-assert.match(main, /dockBg: 'clear'/, 'clear is the requested default');
+// Two selectable appearances as of 2.2.1: classic (no panel, coloured tiles
+// that expand on hover) and glass (the same cards with no panel behind them).
+// The old three-way set — clear, glass, bare — was collapsed: users asked for
+// the classic look back, the near-opaque panel mode was dropped, and the bare
+// mode took the name 'glass'.
+assert.match(main, /const DOCK_BACKGROUNDS = \['classic', 'glass'\]/);
+assert.match(main, /dockBg: 'classic'/, 'classic is the default');
 assert.match(main, /!DOCK_BACKGROUNDS\.includes\(patch\.dockBg\)/, 'config:set must reject an unknown background');
+// config:get no longer resets an unknown value — it migrates. A hand-edited or
+// pre-2.2 config must still open the app on a real mode.
 assert.match(
   main,
-  /!DOCK_BACKGROUNDS\.includes\(config\.dockBg\)/,
-  'config:get must sanitize a hand-edited config so no arbitrary class reaches the DOM',
+  /const migrated = migrateDockBg\(config\.dockBg\);/,
+  'config:get must migrate a pre-2.2 background instead of resetting it',
 );
-assert.match(dock, /data-s="dockBg"/, 'the settings panel offers the three-way choice');
-assert.match(dock, /data-v="clear"/);
-assert.match(dock, /data-v="bare"/);
+// Every legacy name must map somewhere, so no user is left on a mode that
+// does not exist. 'glass' keeps its name because the old panel mode's cards
+// are exactly what 'glass' means now.
+assert.match(
+  main,
+  /const LEGACY_DOCK_BACKGROUNDS = \{ clear: 'classic', bare: 'glass', glass: 'glass' \}/,
+  'all three pre-2.2 names must be mapped',
+);
+assert.match(
+  main,
+  /function migrateDockBg\(value\) \{[\s\S]*?return LEGACY_DOCK_BACKGROUNDS\[value\] \|\| defaultConfig\.dockBg;/,
+  'an unrecognised value falls back to the default rather than reaching the DOM',
+);
+assert.match(dock, /data-s="dockBg"/, 'the settings panel offers the two-way choice');
+assert.match(dock, /data-v="classic"/);
 assert.match(dock, /data-v="glass"/);
-assert.match(dock, /dockBg: "clear"/, 'the renderer default matches the main process');
+assert.doesNotMatch(dock, /data-v="bare"/, 'bare is gone as a user-facing mode');
+assert.match(dock, /dockBg: "classic"/, 'the renderer default matches the main process');
 assert.match(
   dock,
-  /classList\.remove\("clear", "glass", "bare"\)/,
+  /classList\.remove\("classic", "glass"\)/,
   'switching modes must clear the previous mode class, or a stale tint survives',
 );
-// An unrecognised value falls back to clear rather than adding a junk class.
-assert.match(dock, /cfg\.dockBg === "glass" \|\| cfg\.dockBg === "bare" \? cfg\.dockBg : "clear"/);
-// Clear mode: no panel, and the empty space must stay click-through.
-assert.match(dock, /\.dock\.clear \{[\s\S]*?background: none;/);
-assert.match(dock, /\.dock\.clear \{[\s\S]*?border: 0;/);
-assert.match(dock, /\.dock\.clear \{[\s\S]*?box-shadow: none;/);
+// An unrecognised value falls back to classic rather than adding a junk class.
+assert.match(dock, /cfg\.dockBg === "glass" \? "glass" : "classic"/);
+// Classic mode: no panel, and the empty space must stay click-through.
+assert.match(dock, /\.dock\.classic \{[\s\S]*?background: none;/);
+
+// --- Drag a tile out of the dock to open it --------------------------------
+// Dragging inside the dock is a reorder; releasing past the dock's own bounds
+// opens the note. The decision is made in the MAIN process, not the renderer:
+// once the cursor leaves the dock window Chromium stops delivering `dragover`
+// and clamps `dragend` coordinates to the window, so a renderer-side
+// getBoundingClientRect test can never see a point outside. That is why the
+// first version of this looked correct and did nothing.
+assert.match(
+  main,
+  /ipcMain\.handle\('dock:note-dropped'/,
+  'the drop decision belongs to the main process, which can read the real cursor',
+);
+assert.match(
+  main,
+  /const cursor = screen\.getCursorScreenPoint\(\);/,
+  'the main process must read the true screen cursor',
+);
+assert.doesNotMatch(
+  dock,
+  /function outsideDock/,
+  'the renderer must not attempt its own out-of-bounds test',
+);
 assert.match(
   dock,
-  /\.dock\.clear \.stack \{[\s\S]*?pointer-events: none;/,
+  /el\.ondragend = \(\) => \{[\s\S]*?window\.tabbin\.dropNote\(dragId\);/,
+  'the card reports the finished drag and lets the main process decide',
+);
+assert.match(preload, /dropNote: id => ipcRenderer\.invoke\('dock:note-dropped', id\)/);
+// The hint must still exist — it is the only feedback that releasing will open.
+assert.match(dock, /\.droptip/, 'a drag-out hint element must exist');
+assert.match(dock, /Release to open/, 'the hint says what releasing will do');
+assert.doesNotMatch(
+  main,
+  /notes:open-at/,
+  'the client-coordinate path is gone; it could not see outside the window',
+);
+// The cursor may be over a second monitor, so placement is clamped to the work
+// area of the display the cursor is actually on. Both dock edges are covered by
+// the dock's own bounds, so nothing here may assume a left edge.
+assert.match(
+  main,
+  /screen\.getDisplayNearestPoint\(cursor\)\.workArea/,
+  'place the window on whichever display the cursor is on',
+);
+assert.match(
+  main,
+  /openNote\(id, \{[\s\S]*?x: Math\.min\(Math\.max\(cursor\.x/,
+  'the window position is clamped to the work area',
+);
+assert.match(main, /function openNote\(id, at\)/, 'openNote accepts a drop position');
+assert.match(
+  main,
+  /if \(at\) \{[\s\S]*?window\.setPosition\([\s\S]*?\);[\s\S]*?\n  \}/,
+  'a note opened at a drop point is positioned there',
+);
+assert.match(
+  main,
+  /if \(window\.isMinimized\(\)\) window\.restore\(\);[\s\S]*?if \(at\)/,
+  'an already-open note also moves to the drop point',
+);
+assert.match(dock, /\.dock\.classic \{[\s\S]*?border: 0;/);
+assert.match(dock, /\.dock\.classic \{[\s\S]*?box-shadow: none;/);
+// The old panel mode's CSS must be gone, not merely unreferenced — a stray
+// `--glass` panel rule would reappear the moment the class matched again.
+assert.doesNotMatch(dock, /\.dock\.glass \{[^}]*--glass: rgba/, 'the dropped panel mode leaves no rule behind');
+// The per-mode visible-count table has to be renumbered too: it keys off the
+// same mode names, and a stale key silently falls back to DEFAULT_VISIBLE.
+assert.match(dock, /const VISIBLE_BY_MODE = \{ classic: 6, glass: 4 \}/);
+assert.doesNotMatch(dock, /VISIBLE_BY_MODE = \{[^}]*clear:/, 'no legacy mode name in the visible-count table');
+
+// The note window follows the dock's appearance. `bg` rides along with the
+// palette query param, so the page needs no extra IPC.
+assert.match(
+  main,
+  /query: \{ id, palette: palette\.join\(','\), bg: migrateDockBg\(config\.dockBg\) \}/,
+  'openNote passes the migrated background to the note page',
+);
+assert.match(
+  note,
+  /classList\.toggle\('classic', params\.get\('bg'\) !== 'glass'\)/,
+  'the note window applies the classic variant for anything that is not glass',
+);
+assert.match(note, /\.classic \{[\s\S]*?--ink: #1c1c22;/, 'classic notes use dark ink');
+// The note body had `color: #e4e4e8` hardcoded rather than the --ink token, so
+// the classic variant's dark ink never reached the text — the window came up
+// light-on-light. Every colour the mode decides has to come from a token.
+assert.match(
+  note,
+  /\.editor \{[\s\S]*?color: var\(--ink\);/,
+  'the editor must take its colour from the ink token, not a hardcoded value',
+);
+// The active-formatting glyph was the note colour, which on a classic window is
+// the colour of the sheet it sits on — invisible exactly when the user is trying
+// to confirm which format is on.
+assert.doesNotMatch(
+  ruleBody(note, '.tool.active'),
+  /color: var\(--c\)/,
+  'an active tool glyph must not be the note colour; classic mode paints the sheet that colour',
+);
+assert.match(
+  ruleBody(note, '.tool.active'),
+  /color: var\(--ink\)/,
+  'the active tool glyph follows the ink token, so classic mode darkens it',
+);
+
+// The taskbar icon must be a real file. Inside app.asar, Electron silently falls
+// back to the generic page icon, which is why an open note showed no Tabbin
+// icon in a packaged build while dev mode was fine.
+assert.match(
+  main,
+  /if \(!app\.isPackaged\) return path\.join\(__dirname, file\);/,
+  'a dev run must keep using the source icon',
+);
+assert.match(
+  main,
+  /path\.join\(process\.resourcesPath, file\)/,
+  'a packaged build must load the icon from resources/, not from inside the asar',
+);
+assert.match(pkg.build.extraResources && JSON.stringify(pkg.build.extraResources), /icon\.ico/,
+  'the icons must ship as loose files for the packaged icon path to resolve');
+// The taskbar icon resisted three "fixes" that each asserted the same static
+// facts — the exe carries RT_GROUP_ICON, both windows set `icon`, the icon path
+// resolves to a real 6-size ICO. Every one of those was true while the icon was
+// still wrong, so repeating them proves nothing. What is left worth locking
+// down is only the input that could be malformed, and the wiring.
+assert.match(
+  pkg.build.files && JSON.stringify(pkg.build.files),
+  /icon\.ico/,
+  'the icon must ship inside the app',
+);
+assert.match(
+  pkg.build.extraResources && JSON.stringify(pkg.build.extraResources),
+  /icon\.ico/,
+  'and as a loose file the packaged build hands to Windows',
+);
+assert.match(
+  pkg.build.win && JSON.stringify(pkg.build.win),
+  /icon\.ico/,
+  'electron-builder must embed the icon in the exe itself',
+);
+// Note windows get their own taskbar entry, so their icon must not be taken from
+// the app's registered shortcut.
+assert.match(main, /appId: `com\.vanz15\.tabbin\.note\.\$\{id\}`,/);
+assert.equal(
+  (main.match(/app\.setAppUserModelId\(/g) || []).length,
+  1,
+  'the app-level id is set once; per-window ids belong on the window',
+);
+assert.equal(
+  (main.match(/icon: appIcon\(\)/g) || []).length,
+  2,
+  'dock and note windows must resolve their icon through the same helper',
+);
+
+// A white-on-dark surface anywhere on the note page is invisible on the light
+// classic sheet. Only the classic overrides may use white fills.
+for (const sel of ['.tool:hover', '.toolbar', '.toolbar .sep']) {
+  const block = ruleBody(note, `.classic ${sel} {`);
+  assert.ok(
+    !/rgba\(255,\s*255,\s*255/.test(block),
+    `.classic ${sel} must not use a white fill; it disappears on the light sheet`,
+  );
+}
+
+for (const hard of ['#e4e4e8']) {
+  assert.doesNotMatch(
+    note,
+    new RegExp(`color: ${hard}`, 'g'),
+    `${hard} is a light-on-dark value and must not be hardcoded anywhere on the note page`,
+  );
+}
+assert.match(
+  dock,
+  /\.dock\.classic \.stack \{[\s\S]*?pointer-events: none;/,
   'only the tiles may take clicks, so the desktop stays reachable beside them',
 );
 // Clear-mode tiles expand on hover, per the mockup and the tester request.
@@ -149,35 +336,35 @@ assert.match(
 // the column layout is kept and only the tile shape changes.
 assert.doesNotMatch(
   dock,
-  /\.dock\.clear \.stack \{[\s\S]*?flex-flow: row wrap/,
-  'clear mode must stack one note per row, not tile them side by side',
+  /\.dock\.classic \.stack \{[\s\S]*?flex-flow: row wrap/,
+  'classic mode must stack one note per row, not tile them side by side',
 );
-assert.match(dock, /\.dock\.clear \.stack \{[\s\S]*?align-items: flex-start/);
+assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?align-items: flex-start/);
 // The click-through rule is a separate declaration block and must survive.
-assert.match(dock, /\.dock\.clear \.stack \{[\s\S]*?pointer-events: none;/);
-assert.match(dock, /\.dock\.clear \.tab \{[\s\S]*?width: 76px;/);
+assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?pointer-events: none;/);
+assert.match(dock, /\.dock\.classic \.tab \{[\s\S]*?width: 76px;/);
 // Clear tiles: collapsed 52px, expanded 88px — shortened from 62/104 at the
 // user's request that the tiles felt too large.
-assert.match(dock, /\.dock\.clear \.tab \{[\s\S]*?height: 52px;/);
-assert.match(dock, /\.dock\.clear \.tab:hover,[\s\S]*?height: 88px;/);
+assert.match(dock, /\.dock\.classic \.tab \{[\s\S]*?height: 52px;/);
+assert.match(dock, /\.dock\.classic \.tab:hover,[\s\S]*?height: 88px;/);
 // The dock's note column must not draw a scrollbar.
 assert.match(dock, /\.stack \{[\s\S]*?scrollbar-width: none;/);
 assert.match(dock, /\.stack::-webkit-scrollbar \{[\s\S]*?width: 0;/);
 assert.match(
   dock,
-  /\.dock\.clear \.tab::before \{[\s\S]*?display: none;/,
+  /\.dock\.classic \.tab::before \{[\s\S]*?display: none;/,
   'the card colour spine is meaningless on a solid tile',
 );
 // The dock-wide typewriter reveal animates `width` and forces nowrap, which
-// would collapse the preview inside a 76px tile. It must be off in clear mode.
+// would collapse the preview inside a 76px tile. It must be off in classic mode.
 assert.match(
   dock,
-  /\.dock\.clear \.tab \.preview \{[\s\S]*?animation: none;[\s\S]*?white-space: normal;/,
+  /\.dock\.classic \.tab \.preview \{[\s\S]*?animation: none;[\s\S]*?white-space: normal;/,
   'the typewriter animation breaks the tile preview',
 );
 // Settings still need an opaque panel of their own once the dock has no
 // background, or the overlay would float over the desktop with nothing behind it.
-assert.match(dock, /\.dock\.clear \.sets \{[\s\S]*?background: rgba\(24, 24, 27, 0\.94\);/);
+assert.match(dock, /\.dock\.classic \.sets \{[\s\S]*?background: rgba\(24, 24, 27, 0\.94\);/);
 // Frosted is a lighter tint than glass. There is no real blur available to a
 // separate transparent window, so the see-through feel comes from alpha alone.
 // Frosted is Clear's tile layout behind a translucent panel. The panel must be
@@ -186,30 +373,30 @@ assert.match(dock, /\.dock\.clear \.sets \{[\s\S]*?background: rgba\(24, 24, 27,
 // tint over 3.5% white — effectively transparent — so inside the glass panel the
 // near-opaque surface supplied the contrast. With no panel the card must carry
 // that dark base itself, or light ink sits directly on the desktop.
-assert.match(dock, /\.dock\.bare \{[^}]*background: none;/, 'bare draws no panel');
-assert.match(dock, /\.dock\.bare \{[^}]*border: 0;/);
-assert.match(dock, /\.dock\.bare \{[^}]*box-shadow: none;/);
+assert.match(dock, /\.dock\.glass \{[^}]*background: none;/, 'bare draws no panel');
+assert.match(dock, /\.dock\.glass \{[^}]*border: 0;/);
+assert.match(dock, /\.dock\.glass \{[^}]*box-shadow: none;/);
 assert.match(
   dock,
-  /\.dock\.bare \.tab \{[^}]*var\(--glass-bare, rgba\(20, 20, 23, 0\.96\)\)/,
-  'the bare card must carry the panel\'s own dark base to stay readable',
+  /\.dock\.glass \.tab \{[^}]*var\(--glass-card, rgba\(20, 20, 23, 0\.96\)\)/,
+  'the glass-mode card must carry the panel\'s own dark base to stay readable',
 );
 assert.match(
   dock,
-  /\.dock\.bare \.stack \{[^}]*pointer-events: none;/,
+  /\.dock\.glass \.stack \{[^}]*pointer-events: none;/,
   'bare keeps the desktop clickable in the gaps between cards',
 );
-assert.match(dock, /\.dock\.bare \.sets \{[^}]*background: #141417;/, 'settings still needs its own surface');
+assert.match(dock, /\.dock\.glass \.sets \{[^}]*background: #141417;/, 'settings still needs its own surface');
 // The card keeps the glass design: full width, colour spine, light ink. Only the
 // panel is gone, so these must NOT be inherited from clear's tile treatment.
 assert.doesNotMatch(
   dock,
-  /\.dock\.bare \.tab \{[^}]*width: 76px;/,
-  'bare uses glass cards, not the clear-mode tiles',
+  /\.dock\.glass \.tab \{[^}]*width: 76px;/,
+  'glass mode uses cards, not the classic tiles',
 );
 assert.doesNotMatch(
   dock,
-  /\.dock\.bare \.tab::before \{[^}]*display: none;/,
+  /\.dock\.glass \.tab::before \{[^}]*display: none;/,
   'bare keeps the colour spine, which belongs to the glass card design',
 );
 // --- CSS integrity -------------------------------------------------------
@@ -246,9 +433,9 @@ assert.doesNotMatch(main, /console\.log\('\[Tabbin\] dock content height:/,
 // notes at every content length — a 618px cap fitted SEVEN cards, which is how a
 // five-note limit looked like full height.
 // Per-mode visible counts, chosen so the dock keeps ~the same height across
-// modes: clear six tiles (342px) vs glass/bare four cards (340px).
-assert.match(dock, /const VISIBLE_BY_MODE = \{ clear: 6, glass: 4, bare: 4 \};/,
-  'the visible-note count must be per-mode: clear six, glass and bare four');
+// modes: classic six tiles (342px) vs glass four cards (340px).
+assert.match(dock, /const VISIBLE_BY_MODE = \{ classic: 6, glass: 4 \};/,
+  'the visible-note count must be per-mode: classic six, glass four');
 assert.match(dock, /function visibleCount\(\)/,
   'the current mode\'s count must be resolved from the dock class list');
 assert.match(dock, /function measureListCap\(\)/,
@@ -264,8 +451,8 @@ assert.doesNotMatch(dock, /--list-max: calc\(/,
   'no per-mode pixel guesses for the cap may remain — they are what caused the mismatch');
 assert.match(dock, /max-height: var\(--list-max, 70vh\)/,
   'the fallback must be viewport-relative, not a card-count guess');
-assert.match(dock, /\.dock\.clear \.stack \{[\s\S]*?gap: 6px;/,
-  'clear-mode tiles must sit closer together');
+assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?gap: 6px;/,
+  'classic tiles must sit closer together');
 
 // The gear must be a real gear: a ring plus radial teeth, not the old dense cog.
 const gearBlock = (dock.match(/id="gear"[\s\S]*?<\/button>/) || [''])[0];
@@ -419,7 +606,18 @@ assert.doesNotMatch(main, /const y = display\.workArea\.y;/,
 // exists, so the class cannot silently become a no-op again.
 assert.match(dock, /\.dock\.right \.tab \{[\s\S]*?padding:/);
 assert.match(dock, /\.dock\.right \.tab::before \{[\s\S]*?right: 6px;/);
-assert.match(dock, /\.dock\.right\.clear \.stack \{[\s\S]*?align-items: flex-end;/);
+assert.match(
+  dock,
+  /\.dock\.right\.classic \.stack \{[\s\S]*?align-items: flex-end;/,
+  'classic tiles on the right edge hug the edge',
+);
+// A compound selector that names a dead mode loses its rules silently when the
+// mode is renamed, and a regex on the old text keeps passing. Guard the whole
+// stylesheet instead: nothing may name a mode that no longer exists.
+for (const dead of ['clear', 'bare']) {
+  const stale = dock.match(new RegExp(`\\.dock(\\.[a-z]+)*\\.${dead}[\\s,{]`, 'g'));
+  assert.equal(stale, null, `no CSS selector may name the removed mode '${dead}': ${stale}`);
+}
 // The hide chevron has two paths and CSS shows exactly one per edge.
 assert.match(dock, /class="chev chev-l"/);
 assert.match(dock, /class="chev chev-r"/);
@@ -632,7 +830,7 @@ assert.match(pkg.build.nsis.include, /installer\.nsh/);
 // `.search-btn` originally had no mode-specific rule, so in clear and bare it
 // kept its base 6%-white chip with near-white ink. On a light desktop the
 // magnifier was invisible while the add and menu glyphs beside it were fine.
-for (const mode of ['clear', 'bare']) {
+for (const mode of ['classic', 'glass']) {
   assert.match(
     dock,
     new RegExp(`\\.dock\\.${mode} \\.search-btn \\{[^}]*background: rgba\\(18, 20, 30`),
@@ -648,7 +846,7 @@ for (const mode of ['clear', 'bare']) {
 // chip is `rgba(18,20,30,0.5)` with a white glyph; hovering to
 // `rgba(255,255,255,0.26)` washed it toward white and the glyph vanished with
 // it on a pale desktop.
-for (const mode of ['clear', 'bare']) {
+for (const mode of ['classic', 'glass']) {
   for (const control of ['search-btn', 'button']) {
     const sel = `.dock.${mode} .${control}:hover`;
     assert.match(
@@ -664,10 +862,10 @@ for (const mode of ['clear', 'bare']) {
   }
 }
 // The resting chip and its hover must differ, or there is no hover feedback.
-// Match the resting selector with its opening brace: `.dock.clear .button` is a
-// prefix of `.dock.clear .button:hover`, so a bare prefix match made ruleBody
+// Match the resting selector with its opening brace: `.dock.classic .button` is a
+// prefix of `.dock.classic .button:hover`, so a bare prefix match made ruleBody
 // return the hover rule for both and the comparison compared it with itself.
-for (const mode of ['clear', 'bare']) {
+for (const mode of ['classic', 'glass']) {
   const rest = (ruleBody(dock, `.dock.${mode} .button {`).match(
     /background: rgba\(18, 20, 30, ([\d.]+)\)/,
   ) || [])[1];
@@ -704,19 +902,19 @@ assert.doesNotMatch(
 //     dark glass (clear and bare override it to none, which is why their tiles,
 //     the menu and the settings view all have to stay flat)
 //   - the tile drag lift, which only exists while a note is being dragged
+// Keyed on a shadow value that appears in exactly that declaration, so a new
+// heavy shadow anywhere else still fails. Each entry states why the surface is
+// allowed to be heavier than a surface that sits still on screen.
 const BUDGET_EXCEPTIONS = [
-  { budget: 0.5, why: 'glass panel' },
-  { budget: 0.5, why: 'tile drag lift' },
+  { match: '28px 70px', budget: 0.5, why: 'the glass-mode panel reads as a floating sheet' },
+  { match: '14px 30px', budget: 0.5, why: 'the tile drag lift, only while a note is moved' },
+  { match: '4px 12px rgba(0, 0, 0, 0.28)', budget: 0.3, why: 'the drag-out hint, only while dragging' },
 ];
 for (const m of dock.matchAll(/box-shadow:\s*([^;}]+)/g)) {
   const decl = m[1];
   const line = dock.slice(0, m.index).split('\n').length;
-  const allowed = Math.max(0.25, ...BUDGET_EXCEPTIONS.map((e) => e.budget));
-  // Only the two known sites may exceed the resting budget; everything else is
-  // held to it strictly.
-  const isGlassPanel = line < 100;
-  const isDragLift = decl.includes('14px 30px');
-  const budget = isGlassPanel || isDragLift ? allowed : 0.25;
+  const exception = BUDGET_EXCEPTIONS.find((e) => decl.includes(e.match));
+  const budget = exception ? exception.budget : 0.25;
   for (const a of decl.matchAll(/rgba\(\s*0,\s*0,\s*0,\s*([\d.]+)\s*\)/g)) {
     assert.ok(
       Number(a[1]) <= budget,
@@ -737,13 +935,13 @@ assert.match(
 // one on hover, which read as haze around the whole dock over a light desktop.
 // At rest the tile is flat colour; the lift belongs on hover only.
 // Slice the real rule bodies by their braces. Indexing on the selector text
-// alone matched an earlier `.dock.clear .tab {` used only for pointer-events,
+// alone matched an earlier `.dock.classic .tab {` used only for pointer-events,
 // so the assertions were reading the wrong block.
 function ruleBody(css, selector) {
   // The selector must begin its own line. Substring matching silently returned
   // the wrong block three separate times: `.menu {` also occurs inside
-  // `.dock.right .menu {`, `.dock.clear .button` inside
-  // `.dock.clear .button:hover`, and `.dock.clear .tab {` inside an earlier
+  // `.dock.right .menu {`, `.dock.classic .button` inside
+  // `.dock.classic .button:hover`, and `.dock.classic .tab {` inside an earlier
   // pointer-events rule. Every rule here is indented on its own line, so
   // requiring a leading newline (or start of input) is what makes the match
   // exact. Where a selector genuinely repeats, the LAST match wins, since that
@@ -765,22 +963,22 @@ function ruleBody(css, selector) {
   }
   return '';
 }
-const tileRest = ruleBody(dock, '.dock.clear .tab {');
+const tileRest = ruleBody(dock, '.dock.classic .tab {');
 assert.doesNotMatch(
   tileRest,
   /box-shadow:[^;]*\b\d+px\s+\d+px\s+rgba\(0,\s*0,\s*0/,
-  'a clear-mode tile must not cast a drop shadow at rest',
+  'a classic tile must not cast a drop shadow at rest',
 );
 // The hover rule is written as a two-selector list ending in ':hover',
 // so match on the prefix and let ruleBody walk to its closing brace.
-const tileHover = ruleBody(dock, '.dock.clear .tab:hover,');
-assert.ok(tileHover.includes('box-shadow'), 'clear-mode hover rule must declare a box-shadow');
+const tileHover = ruleBody(dock, '.dock.classic .tab:hover,');
+assert.ok(tileHover.includes('box-shadow'), 'classic hover rule must declare a box-shadow');
 const hoverAlpha = Number(
   ((tileHover.match(/box-shadow:[^;]*?rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/) || [])[1]) || 1,
 );
 assert.ok(
   hoverAlpha <= 0.2,
-  `clear-mode hover shadow must stay subtle (alpha ${hoverAlpha}), got ${hoverAlpha}`,
+  `classic hover shadow must stay subtle (alpha ${hoverAlpha}), got ${hoverAlpha}`,
 );
 assert.match(
   tileRest,
@@ -788,7 +986,7 @@ assert.match(
   'the tile keeps its inset top light so it still reads as lit from above',
 );
 // The footer text-shadow sat at 0.5 alpha over an arbitrary desktop.
-for (const sel of ['.dock.clear .foot', '.dock.bare .foot']) {
+for (const sel of ['.dock.classic .foot', '.dock.glass .foot']) {
   const block = ruleBody(dock, sel);
   const alpha = Number((block.match(/text-shadow:[^;]*rgba\(0,\s*0,\s*0,\s*([\d.]+)\)/) || [])[1] || 1);
   assert.ok(alpha <= 0.35, `${sel} text-shadow must stay subtle (alpha ${alpha}), got ${alpha}`);

@@ -37,7 +37,18 @@ if (!hasSingleInstanceLock) {
   });
 }
 
-const appIcon = () => path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+// The taskbar icon has to be a REAL file on disk. In a packaged build __dirname
+// lives inside app.asar, and Electron cannot load a taskbar icon from inside an
+// asar archive — it silently falls back to the generic page icon, which is why
+// an open note showed no Tabbin icon. electron-builder copies icon.ico to
+// resources/ as a loose file, so prefer that when packaged and fall back to the
+// source tree for `npm start`.
+const appIcon = () => {
+  const file = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  if (!app.isPackaged) return path.join(__dirname, file);
+  const loose = path.join(process.resourcesPath, file);
+  return fs.existsSync(loose) ? loose : path.join(__dirname, file);
+};
 const configFile = () => userDataFile('config.json');
 // Notes live beside Tabbin's other userData by default. When Settings picks a
 // folder, notes.json lives there instead — so this resolves on every call rather
@@ -60,15 +71,29 @@ const seed = [
   { id: 'tasks', title: 'Today', content: '• Clear pending tasks\n• Hit the gym\n• Rest and recharge', color: '#F2A38F', updatedAt: Date.now() - 2000 }
 ];
 // dockBg selects the dock's appearance:
-//   'clear' - no panel; coloured note tiles that expand on hover
-//   'glass' - the near-opaque 2.0.0 panel behind glass cards
-//   'bare'  - the same glass cards with no panel behind them
-// 'clear' is the default per the v2.1 request.
-const DOCK_BACKGROUNDS = ['clear', 'glass', 'bare'];
+//   'classic' - no panel; coloured note tiles that expand on hover
+//   'glass'   - the same glass cards with no panel behind them
+// v2.2.1 drops the old 'glass' appearance (the near-opaque panel behind glass
+// cards). Users asked for the classic coloured-note look back, so that mode
+// took the name 'clear' and the bare-glass mode took the name 'glass'.
+const DOCK_BACKGROUNDS = ['classic', 'glass'];
+// A config written by 2.1.0 or earlier stores 'clear' | 'glass' | 'bare'.
+// Mapping has to keep every user on an appearance they recognise:
+//   clear -> classic  (same tiles, now under its own name)
+//   bare  -> glass    (same bare cards, renamed)
+//   glass -> glass    (the old panel mode has no successor; its glass cards do)
+// An unrecognised value falls back to the default rather than being dropped,
+// so a hand-edited config still opens the app.
+const LEGACY_DOCK_BACKGROUNDS = { clear: 'classic', bare: 'glass', glass: 'glass' };
 const defaultConfig = {
   edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430,
-  dockWidth: 'compact', dockBg: 'clear', saveLocation: 'same', launchOnStartup: false
+  dockWidth: 'compact', dockBg: 'classic', saveLocation: 'same', launchOnStartup: false
 };
+
+function migrateDockBg(value) {
+  if (DOCK_BACKGROUNDS.includes(value)) return value;
+  return LEGACY_DOCK_BACKGROUNDS[value] || defaultConfig.dockBg;
+}
 
 function hexToRgb(hex) {
   const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
@@ -302,12 +327,20 @@ function setupAutoUpdater() {
   // event firehose loses events that land before the dock finishes loading.
   updater.init(state => broadcast('update:state', state));
 }
-function openNote(id) {
+// `at` is a screen position in DIP. Passed when a note is opened by dragging a
+// tile out of the dock, so the window lands where it was dropped instead of the
+// centre of the display.
+function openNote(id, at) {
   clearHideTimer();
   hideDock();
   if (noteWindows.has(id) && !noteWindows.get(id).isDestroyed()) {
     const window = noteWindows.get(id);
     if (window.isMinimized()) window.restore();
+    // An already-open note follows the drop rather than jumping to its old spot.
+    if (at) {
+      const [w, h] = window.getSize();
+      window.setPosition(Math.round(at.x - w / 2), Math.round(at.y - 20), false);
+    }
     window.show();
     window.focus();
     return;
@@ -315,7 +348,13 @@ function openNote(id) {
   const note = loadNotes().find(item => item.id === id);
   const noteColor = note && note.color || palette[0];
   const config = loadConfig();
+  // A per-window AppUserModelID. Sharing the app's makes Windows group every
+  // window under one identity and take the taskbar icon from the registered
+  // shortcut rather than from BrowserWindow.icon, so a note showed a generic
+  // page icon despite the exe carrying one. Setting `appId` here is what makes
+  // the per-window `icon` actually take effect.
   const window = new BrowserWindow({
+    appId: `com.vanz15.tabbin.note.${id}`,
     width: config.noteWidth || 430, height: config.noteHeight || 430, minWidth: 300, minHeight: 260, resizable: true,
     // Frameless with custom chrome drawn in note.html, matching the mockup's
     // logo bar with pin/close controls. titleBarStyle 'hidden' keeps the native
@@ -339,10 +378,19 @@ function openNote(id) {
     autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false }
   });
   window.setResizable(true);
+  if (at) {
+    const [w] = window.getSize();
+    window.setPosition(Math.round(at.x - w / 2), Math.round(at.y - 20), false);
+  }
   noteWindows.set(id, window);
   // Pass the palette so the colour dots and the window gradient always agree
   // with the colours the main process assigns to new notes.
-  window.loadFile('note.html', { query: { id, palette: palette.join(',') } });
+  // `bg` lets the page follow the dock's appearance: classic notes are solid
+  // colour, glass notes keep the dark window. Passed as a query param alongside
+  // the palette for the same reason, rather than a second IPC round-trip.
+  window.loadFile('note.html', {
+    query: { id, palette: palette.join(','), bg: migrateDockBg(config.dockBg) }
+  });
   let resizeTimer;
   window.on('resize', () => {
     clearTimeout(resizeTimer);
@@ -389,24 +437,35 @@ ipcMain.handle('app:quit', () => app.quit());
 ipcMain.handle('config:get', () => {
   const config = loadConfig();
   // Never hand the renderer a value it would put straight into classList.add().
-  if (!DOCK_BACKGROUNDS.includes(config.dockBg)) config.dockBg = defaultConfig.dockBg;
+  // This also migrates a pre-2.2 name on the way out, and writes the result back
+  // so the rename is not re-applied on every launch.
+  const migrated = migrateDockBg(config.dockBg);
+  if (migrated !== config.dockBg) {
+    config.dockBg = migrated;
+    saveConfig(config);
+  }
   return { ...config, palette, notesPath: dataFile() };
 });
 // Settings persist immediately and re-layout the dock, so a change to the
 // activation edge or width is visible without a restart.
 ipcMain.handle('config:set', (_, patch) => {
   const current = loadConfig();
+  // Migrate a pre-2.2 background name before it is merged in, or `next` would
+  // carry the legacy value forward and the renderer's classList.add() would be
+  // handed a class that no longer exists.
+  if ('dockBg' in patch) {
+    const wanted = migrateDockBg(patch.dockBg);
+    if (wanted !== patch.dockBg) patch = { ...patch, dockBg: wanted };
+    else if (!DOCK_BACKGROUNDS.includes(patch.dockBg)) {
+      console.log('[Tabbin] Rejected unknown dock background:', patch.dockBg);
+      return current;
+    }
+  }
   const next = { ...current, ...patch };
   // A save folder is the one setting that can break every subsequent save, so
   // it is validated before it is written and the old value survives a bad pick.
   if ('saveLocation' in patch && !isValidSaveDir(patch.saveLocation)) {
     console.log('[Tabbin] Rejected invalid save location:', patch.saveLocation);
-    return current;
-  }
-  // An unknown background would end up in a classList.add() in the renderer, so
-  // it is filtered here rather than trusted from a patched config file.
-  if ('dockBg' in patch && !DOCK_BACKGROUNDS.includes(patch.dockBg)) {
-    console.log('[Tabbin] Rejected unknown dock background:', patch.dockBg);
     return current;
   }
   // Startup registration is a real side effect on the user's machine, so it is
@@ -479,6 +538,34 @@ ipcMain.handle('notes:delete', async (_, id) => {
   broadcast('notes:changed', notes);
 });
 ipcMain.handle('notes:open', (_, id) => openNote(id));
+// Opened by dragging a tile out of the dock. The renderer sends client coords;
+// they are converted to screen coords here so the window lands under the cursor
+// regardless of where the dock itself sits.
+// A tile drag finished. Decide here whether that was a reorder (dropped on the
+// dock) or a request to open the note (dropped anywhere else), because only the
+// main process can read the real cursor once it has left the dock window —
+// screen.getCursorScreenPoint() is not clipped to the dock's own bounds.
+const DROP_MARGIN = 8;
+ipcMain.handle('dock:note-dropped', (_, id) => {
+  if (!dock || dock.isDestroyed()) return false;
+  const cursor = screen.getCursorScreenPoint();
+  const [dx, dy] = dock.getPosition();
+  const [dw, dh] = dock.getSize();
+  const outside =
+    cursor.x < dx - DROP_MARGIN ||
+    cursor.x > dx + dw + DROP_MARGIN ||
+    cursor.y < dy - DROP_MARGIN ||
+    cursor.y > dy + dh + DROP_MARGIN;
+  if (!outside) return false;
+  // The cursor may be on a second monitor, so clamp to the work area of the
+  // display it is actually on rather than the primary one.
+  const bounds = screen.getDisplayNearestPoint(cursor).workArea;
+  openNote(id, {
+    x: Math.min(Math.max(cursor.x, bounds.x), bounds.x + bounds.width - 80),
+    y: Math.min(Math.max(cursor.y - 20, bounds.y), bounds.y + bounds.height - 40)
+  });
+  return true;
+});
 ipcMain.handle('notes:toggle-always-on-top', async (_, id) => {
   const notes = loadNotes(); const index = notes.findIndex(note => note.id === id); if (index < 0) return null;
   notes[index] = { ...notes[index], alwaysOnTop: !notes[index].alwaysOnTop };

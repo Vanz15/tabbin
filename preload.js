@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('tabbin', {
   setSaveLocation: dir => ipcRenderer.invoke('config:set', { saveLocation: dir }),
   pickFolder: () => ipcRenderer.invoke('dialog:browse-folder'),
   open: id => ipcRenderer.invoke('notes:open', id),
+  dropNote: id => ipcRenderer.invoke('dock:note-dropped', id),
   hide: () => ipcRenderer.invoke('dock:hide'),
   cursorLeft: () => ipcRenderer.invoke('dock:cursor-left'),
   reportContentHeight: h => ipcRenderer.invoke('dock:content-height', h),
