@@ -12,6 +12,24 @@
 
 </div>
 
+## Screenshots
+
+<div align="center">
+
+### The dock, revealed on hover
+
+<img src="screenshots/01-dock.jpg" alt="Tabbin's dock revealed on the left edge of the screen, showing six coloured note tiles beneath the search, add and menu controls" width="820" />
+
+### A note, opened and resized
+
+<img src="screenshots/02-note.jpg" alt="A Tabbin note window with the welcome note, five colour dots and a rich-text toolbar" width="820" />
+
+### Writing a new note
+
+<img src="screenshots/03-writing.jpg" alt="An empty Tabbin note window titled Create your own note now, with the caret blinking and the toolbar below" width="820" />
+
+</div>
+
 ## Overview
 
 Tabbin is a hover-activated dock for quick notes that stays out of your way. It
