@@ -31,7 +31,7 @@ reorder.
 
 ## Features
 
-- **Two dock appearances** — classic (coloured tiles that expand on hover) or glass (the same cards floating without a panel behind them)
+- **Two dock appearances** — classic (coloured tiles that expand on hover) or glass (premium look of the tiles)
 - **Drag a note out to open it** — pull a tile off the dock and it opens where you drop it; drag around inside the dock to reorder instead
 - **Settings panel** — dock side, appearance, auto-hide, dock width, launch-on-startup, save location, and clear-all-notes, behind one menu
 - **Find your notes** — Settings shows the folder your notes live in, with one button to open it and another to move them
