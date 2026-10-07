@@ -53,5 +53,5 @@ and nothing needs migrating.
      Then: npm run verify:feed -- --tag v2.2.3
      It fails if a checksum here does not match what GitHub stored. -->
 
-- `Tabbin-Setup.exe`: `PENDING`
-- `Tabbin-Portable.exe`: `PENDING`
+- `Tabbin-Setup.exe`: `b001ed8b0260a53798a026810ae883d9c7704943f62f85177080ae0f4620cf69`
+- `Tabbin-Portable.exe`: `dd479a093b113c357ef4bf57d1889f623f0268a3c69f166e0b8b753b97430193`
