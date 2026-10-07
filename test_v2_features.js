@@ -348,7 +348,13 @@ assert.doesNotMatch(
 assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?align-items: flex-start/);
 // The click-through rule is a separate declaration block and must survive.
 assert.match(dock, /\.dock\.classic \.stack \{[\s\S]*?pointer-events: none;/);
-assert.match(dock, /\.dock\.classic \.tab \{[\s\S]*?width: 76px;/);
+// Line-anchored: the bare regex spans past this rule into `.dock.classic .tab`,
+// so it passed on a declaration in a different block than the one it names.
+assert.match(
+  ruleBody(dock, '.dock.classic .tab {'),
+  /width: 76px;/,
+  'the collapsed classic tile is 76px wide',
+);
 // Clear tiles: collapsed 52px, expanded 88px — shortened from 62/104 at the
 // user's request that the tiles felt too large.
 assert.match(dock, /\.dock\.classic \.tab \{[\s\S]*?height: 52px;/);
