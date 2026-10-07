@@ -99,6 +99,26 @@ The dock's bottom status row reports update state — available, download
 progress, restart to install, or a retry option after a failure. It stays
 hidden when there is nothing to report.
 
+## Support
+
+If Tabbin is useful to you, a GitHub star goes a long way. Stars are what make
+a repository show up in searches and recommendations, so it is the one thing
+that helps other people find it.
+
+[![Star Tabbin](https://img.shields.io/github/stars/Vanz15/tabbin?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Vanz15/tabbin)
+
+The badge shows the real count, so right now it is a small project with a small
+number. That is fine. Every star here is from someone who actually installed it.
+
+Other things that help just as much:
+
+- [Open an issue](https://github.com/Vanz15/tabbin/issues) if something is
+  broken or a feature is missing. It is the only way I find out.
+- [Tell me how you use it](https://github.com/Vanz15/tabbin/issues/new?title=How%20you%20use%20Tabbin).
+  Real workflows tell me what to build next far better than I can guess.
+- Share it with someone who keeps a messy desktop. That is genuinely how a
+  small app finds its users.
+
 ## Development
 
 ### Prerequisites
