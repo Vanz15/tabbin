@@ -8,6 +8,10 @@
 
 [![Download for Windows](https://img.shields.io/badge/Download-Tabbin%20Setup-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Vanz15/tabbin/releases/latest/download/Tabbin-Setup.exe)
 
+[![release](https://img.shields.io/github/v/release/Vanz15/tabbin?style=flat&label=release&color=blueviolet&logo=github&logoColor=white)](https://github.com/Vanz15/tabbin/releases/latest)
+[![downloads](https://img.shields.io/github/downloads/Vanz15/tabbin/total?style=flat&label=downloads&color=green&logo=github&logoColor=white)](#install)
+[![windows](https://img.shields.io/badge/windows-10%20%7C%2011-0078D7?style=flat&logo=windows&logoColor=white)](https://github.com/Vanz15/tabbin#install)
+
 [Features](#features) • [Install](#install) • [Development](#development) • [Architecture](#architecture)
 
 </div>
