@@ -6,7 +6,9 @@
 
 **A lightweight hover-activated dock for your notes — always on top, never in the way.**
 
-[Features](#features) • [Getting started](#getting-started) • [Development](#development) • [Architecture](#architecture)
+[![Download for Windows](https://img.shields.io/badge/Download-Tabbin%20Setup-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Vanz15/tabbin/releases/latest/download/Tabbin-Setup.exe)
+
+[Features](#features) • [Install](#install) • [Development](#development) • [Architecture](#architecture)
 
 </div>
 
@@ -47,16 +49,28 @@ reorder.
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
 - **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
 
-## Getting started
+## Install
 
-### Download
+Tabbin is Windows-only, x64. The setup file installs it and receives updates
+automatically.
 
-Pre-built binaries for Windows (x64) are on the [releases page](https://github.com/Vanz15/tabbin/releases):
+1. Download **[Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/latest/download/Tabbin-Setup.exe)**
+   (about 68 MB). The link always serves the newest release, so you never need
+   to check the version first.
+2. Windows will warn you that the publisher is unknown. Tabbin is not code
+   signed and never will be without a certificate, so this warning is expected.
+   Click **More info**, then **Run anyway**.
+3. Pick where to install it. The default is fine for most people.
+4. Finish the installer. It adds a Start Menu entry and a Desktop shortcut.
+5. Launch Tabbin from either.
 
-| Build | Use it when |
-|---|---|
-| **`Tabbin-Setup.exe`** | You want auto-updates. Installs with Start Menu and Desktop shortcuts. |
-| **`Tabbin-Portable.exe`** | You want no installation. Cannot self-update — it runs from a temp folder and replaces nothing. |
+That is the whole install. Nothing to configure, no account, no internet needed
+after the download — your notes are stored locally in your user profile.
+
+> [!TIP]
+> Want to try it without installing? There is a portable build on the
+> [releases page](https://github.com/Vanz15/tabbin/releases). It cannot update
+> itself, since it runs from a temporary folder.
 
 ### Using it
 
