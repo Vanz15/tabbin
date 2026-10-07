@@ -512,15 +512,22 @@ ipcMain.handle('updates:check', () => updater.check());
 ipcMain.handle('updates:download', () => updater.download());
 ipcMain.handle('updates:install', () => updater.install());
 ipcMain.handle('updates:dismiss-nudge', () => updater.dismissNudge());
-ipcMain.handle('notes:list', () => loadNotes().sort((a, b) => b.updatedAt - a.updatedAt));
-ipcMain.handle('notes:create', () => {
+// Notes are returned in persisted order, NOT sorted by updatedAt. The array in
+// notes.json IS the display order that drag-reorder writes, so sorting here
+// silently discarded the user's arrangement on every launch.
+ipcMain.handle('notes:list', () => loadNotes());
+ipcMain.handle('notes:create', async () => {
   const notes = loadNotes();
   // New notes rotate through the palette so successive notes are visually distinct.
   // The old "New note color" settings choice was removed — set the colour from the
   // note window's colour dots after creating the note instead.
   const color = palette[notes.length % palette.length];
   const note = { id: crypto.randomUUID(), title: 'Untitled note', content: '', color, updatedAt: Date.now() };
-  notes.unshift(note); saveNotes(notes); broadcast('notes:changed', notes); openNote(note.id); return note;
+  notes.unshift(note);
+  await queueWrite(notes);
+  broadcast('notes:changed', notes);
+  openNote(note.id);
+  return note;
 });
 ipcMain.handle('notes:get', (_, id) => loadNotes().find(note => note.id === id));
 ipcMain.handle('notes:update', async (_, note) => {
