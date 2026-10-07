@@ -1,50 +1,35 @@
-## Tabbin v2.2.2 — keyboard shortcuts, and findable notes
+## Tabbin v2.2.3 — your note order stops resetting
 
-Editor keyboard shortcuts, and a Save location row that tells you where your
-notes actually are. No data format changed.
-
-### Added
-
-- **Align left / centre / right** — `Ctrl+L`, `Ctrl+E`, `Ctrl+R`
-- **Strikethrough** — `Ctrl+Alt+S`, which has no native browser binding
-- **Indent and outdent** — `Tab` and `Shift+Tab` inside a list. Outside a list
-  `Tab` still moves focus out of the note, as it always did.
-- **Automatic lists** — type `1. ` or `- ` at the start of a block to turn it
-  into a numbered or bulleted list. Typing the marker inside an existing list
-  does not nest a new one.
-- **Open the save folder** — a button that reveals where notes are stored,
-  separate from the control that changes it.
-
-Bold, italic and underline were already handled by the browser's own shortcuts
-and are unchanged.
-
-### Changed
-
-- **Clear all notes** now uses a trash can instead of an X.
-- **The three header controls are the same size.** Search was 34px against the
-  new-note button's 30px, with a different corner radius, so the glyphs did not
-  read as a set. All three are 30px with an 8px radius, and the expanded search
-  field matches.
+Three fixes for bugs that shipped since 2.2.1. None of them touched your notes,
+and nothing needs migrating.
 
 ### Fixed
 
-- **Settings showed the settings icon as a brightness glyph.** It was a bare
-  ring plus eight short radial strokes, which at 16px is indistinguishable from a
-  sun icon. It is now a toothed cog outline with a centre bore.
-- **Save location read "Unknown location".** The settings panel painted once
-  before the configuration arrived, wrote the placeholder, and nothing repainted
-  it afterwards.
-- **Save location read "Loading…" forever after changing it.** The read and write
-  config handlers returned different shapes, and the renderer merges whatever it
-  receives over its own config — so a response with no path in it erased the path
-  it already had. Both handlers now return the same shape.
-- **Save location showed "notes.json".** The path is the notes file, so taking
-  its last segment gave the filename rather than the folder. It now shows the
-  directory, clipping from the left so the folder name stays visible on a long
-  path.
+- **Your tile order no longer resets when you restart.** Dragging tiles into an
+  order looked like it worked, then went back to sorted-by-recently-edited on
+  the next launch. The order was being saved and then immediately re-sorted away
+  on the way out. It sticks now.
+- **Creating a note while another note was saving could lose one of them.**
+  Every other action was already serialized through a write queue; creating a
+  note was calling the file writer directly and skipping it. It is on the queue
+  like the rest.
+- **Dragging a tile out of the dock no longer throws an internal error.** The
+  note still opened where you dropped it, but the code after that point silently
+  failed, so the drag highlight could get stuck. It is fixed. Your tile order and
+  note windows are unaffected.
+
+### Removed
+
+- **The "Release to open" drag hint.** v2.2.1's release notes said this hint
+  followed your cursor while you dragged a tile. It never did, in any released
+  version — the dock is its own small window, so the hint had nowhere to go. It
+  has been removed rather than half-fixing it. Dragging a tile out still opens the
+  note exactly where you drop it.
 
 ### Notes
 
+- No data format change. Your existing notes, colours, and dock settings carry
+  over untouched.
 - Auto-update still applies to the installed build only; the portable executable
   cannot replace itself.
 - Tabbin is not code signed, so Windows SmartScreen may warn you when installing
@@ -52,15 +37,21 @@ and are unchanged.
 
 ### Download Links
 
-- [Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.2/Tabbin-Setup.exe) — installed build, receives updates
-- [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.2/Tabbin-Portable.exe) — no install, no auto-update
+- [Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.3/Tabbin-Setup.exe) — installed build, receives updates
+- [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.2.3/Tabbin-Portable.exe) — no install, no auto-update
 
 ### Checksums
 
-<!-- Digests of the assets GitHub actually stored, not the local dist/.
-     `npm run verify:feed -- --tag v2.2.2` checks these against the published
-     files and fails on a mismatch. -->
+<!-- FILL THESE IN BEFORE PUBLISHING — read them from GitHub's stored asset
+     digests AFTER upload, never from local dist/, because `--publish` rebuilds.
 
-- `Tabbin-Setup.exe`: `3bd4bb3b0a279691e85a55a386cfda1c878e7a7559363985d91b5dde8014d1b4`
-- `Tabbin-Portable.exe`: `bdcfa8651ff00bd08b764b4f6dc2abc471fc253e24ab61a8f4aaf63b8a00a1bb`
+       TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill | sed -n 's/^password=//p')
+       curl -s -H "Authorization: token $TOKEN" \
+         https://api.github.com/repos/Vanz15/tabbin/releases/tags/v2.2.3 \
+         | python -c "import sys,json;[print(a['name'],a['digest']) for a in json.load(sys.stdin)['assets']]"
 
+     Then: npm run verify:feed -- --tag v2.2.3
+     It fails if a checksum here does not match what GitHub stored. -->
+
+- `Tabbin-Setup.exe`: `PENDING`
+- `Tabbin-Portable.exe`: `PENDING`

@@ -19,11 +19,13 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.2.2** adds editor keyboard shortcuts — align, strikethrough, indent, and
-> automatic lists — and fixes the Save location row so it shows the folder your
-> notes are actually in. **v2.2.1** brought back the classic coloured-note look
-> and lets you drag a note out of the dock to open it. **v1.0.1** remains
-> available on the releases page if you prefer the older tab-based dock.
+> **v2.2.3** fixes your note order resetting on restart, a lost note when creating
+> one during a save, and an internal error on every drag-out. **v2.2.2** added
+> editor keyboard shortcuts — align, strikethrough, indent, and automatic lists —
+> and fixed the Save location row so it shows the folder your notes are actually
+> in. **v2.2.1** brought back the classic coloured-note look and lets you drag a
+> note out of the dock to open it. **v1.0.1** remains available on the releases
+> page if you prefer the older tab-based dock.
 
 ## Features
 

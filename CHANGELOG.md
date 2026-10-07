@@ -5,6 +5,57 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.3] - 2026-10-07
+
+Three fixes for bugs that shipped since 2.2.1, none of which had anything to do
+with notes data. No data format changed and nothing needs migrating.
+
+### Fixed
+
+- **Drag-reorder was discarded on every relaunch.** `notes:list` sorted by
+  `updatedAt`, so the order you dragged tiles into was thrown away the next time
+  the app started. Reordering looked like it worked because the handler
+  broadcasts the ordered array and nothing re-sorted it until the next launch.
+  The array in `notes.json` is the display order, and `notes:list` now returns it
+  as persisted. `updatedAt` still drives the relative timestamp on each tile,
+  just not the ordering.
+- **Creating a note could lose one.** `notes:create` called `saveNotes()`
+  directly while update, reorder, delete and pin all went through `queueWrite`.
+  The comment above `queueWrite` warns about lost updates when two handlers read
+  before either write lands, and create was not on the queue. It is serialized
+  like the rest now.
+- **Dragging a tile out of the dock threw a `ReferenceError` on every drag.**
+  `dragHint` was declared with `const` inside `measureListCap()` but used from
+  `render()`'s drag-end handler, so the identifier was never in scope. The note
+  still opened, because `dropNote()` runs first, but the drag-over highlight
+  never cleared. The same block was nested inside a measurement helper by
+  mistake, so its two document listeners were re-registered on every re-measure.
+
+### Removed
+
+- **The "Release to open" drag hint.** 2.2.1's notes claimed it followed the
+  cursor while you dragged. It never did, in any released version: the dock is
+  its own OS window 268-320px wide, so a `position: fixed` hint cannot leave the
+  panel, and the element was never given the `.show` class that reveals it. Drag
+  out still opens the note where you drop it, and the drop handler now also lives
+  at script top level where it was always meant to.
+
+### Internal
+
+- **A test was passing on the wrong CSS rule.** The assertion named
+  `.dock.classic .tab` and wanted `width: 76px`, but the bare regex spanned past
+  that rule's closing brace and matched a declaration 130 lines later inside a
+  different block. It passed whether or not the rule it named was correct. It now
+  anchors to the rule it names, and is confirmed to fail on a document where the
+  width is absent.
+- New `test_notes_order.js` runs the real storage functions against a temp notes
+  file. Both data bugs above read as correct source, so no text assertion could
+  have caught either.
+- Dead code removed: an unused `sVersion` lookup, an unused `setSaveLocation`
+  bridge entry, two unused CSS custom properties, a redundant `setResizable`,
+  a vacuous `typeof` guard, the `electron-reload` dependency, and an orphaned
+  icon SVG.
+
 ## [2.2.2] - 2026-10-06
 
 Editor keyboard shortcuts, and a Save location row that tells you where your
