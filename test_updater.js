@@ -86,7 +86,7 @@ const at = (status) => createInitialState({ status });
   );
 
   const unsupported = at(STATUS.UNSUPPORTED);
-  for (const type of ['check', 'available', 'no-update', 'error', 'downloaded', 'reset']) {
+  for (const type of ['check', 'available', 'no-update', 'error', 'downloaded']) {
     assert.strictEqual(apply(unsupported, type, { version: '1.1.0' }), unsupported, `${type} while unsupported`);
   }
 

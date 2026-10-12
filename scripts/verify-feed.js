@@ -295,7 +295,7 @@ async function main() {
 // Exported so the offline unit test can exercise the checksum guard directly
 // instead of re-implementing it. main() only runs when invoked as a script, so
 // requiring this file has no side effects.
-module.exports = { verifyBodyChecksums, parseFeed };
+module.exports = { verifyBodyChecksums };
 
 if (require.main === module) {
   main().catch((error) => {

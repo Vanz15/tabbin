@@ -256,4 +256,4 @@ function init(onState) {
   check().catch(() => {});
 }
 
-module.exports = { init, check, download, install, dismissNudge, snapshot, CHANNEL };
+module.exports = { init, check, download, install, dismissNudge, snapshot };

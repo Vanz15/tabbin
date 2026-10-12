@@ -510,12 +510,6 @@
 
          classic - no panel. Notes become compact tiles that expand on hover.
          glass   - the near-opaque 2.0.0 treatment. */
-      /* Frosted is Clear's tile layout with a translucent panel dropped behind
-         it, so the desktop tints the surface. There is still no real blur: this
-         is a separate transparent window, so `backdrop-filter` has nothing to
-         sample — the effect is alpha alone. 0.80 is the point where light text
-         stays readable over an arbitrary desktop while the wallpaper still
-         shows through. */
       
 
       /* Glass: the glass cards with no panel behind them. The cards keep the
@@ -863,17 +857,6 @@
         border-radius: 18px;
         overflow: hidden;
       }
-      /* Frosted is a light dock, so its settings panel follows rather than
-         opening as a dark slab over it. Still fully opaque — the note list sits
-         directly underneath, so translucency here makes the rows unreadable. */
-
-
-
-
-
-
-
-
       .sets.show {
         display: flex;
         animation: setsin 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
@@ -1447,10 +1430,9 @@
       // card height is content-driven, so this balance holds closely rather than
       // exactly as content changes.
       const VISIBLE_BY_MODE = { classic: 6, glass: 4 };
-      const DEFAULT_VISIBLE = 4;
       function visibleCount() {
         const mode = root.classList.contains("glass") ? "glass" : "classic";
-        return VISIBLE_BY_MODE[mode] || DEFAULT_VISIBLE;
+        return VISIBLE_BY_MODE[mode];
       }
       // Height of the first VISIBLE_COUNT cards including the gaps between them.
       // Measured, never guessed: cards are content-driven, so a hard-coded pixel
@@ -1566,10 +1548,6 @@
           openSearch();
           search.focus();
           search.select();
-        } else if (e.key === "Escape" && document.activeElement === search) {
-          search.value = "";
-          render();
-          search.blur();
         }
       });
       // --- Settings -------------------------------------------------

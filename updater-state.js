@@ -154,15 +154,6 @@ function reduce(state, event) {
       });
     }
 
-    case 'reset': {
-      if (state.status === STATUS.UNSUPPORTED) return state;
-      return createInitialState({
-        currentVersion: state.currentVersion,
-        nudgeDismissed: state.nudgeDismissed,
-        checkedAt: state.checkedAt,
-      });
-    }
-
     default:
       return state;
   }
@@ -205,7 +196,6 @@ function numberOr(value, fallback) {
 
 module.exports = {
   STATUS,
-  DOWNLOAD_LOCKED,
   createInitialState,
   reduce,
   nextAction,
