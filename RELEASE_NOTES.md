@@ -42,16 +42,5 @@ and nothing needs migrating.
 
 ### Checksums
 
-<!-- FILL THESE IN BEFORE PUBLISHING — read them from GitHub's stored asset
-     digests AFTER upload, never from local dist/, because `--publish` rebuilds.
-
-       TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill | sed -n 's/^password=//p')
-       curl -s -H "Authorization: token $TOKEN" \
-         https://api.github.com/repos/Vanz15/tabbin/releases/tags/v2.2.3 \
-         | python -c "import sys,json;[print(a['name'],a['digest']) for a in json.load(sys.stdin)['assets']]"
-
-     Then: npm run verify:feed -- --tag v2.2.3
-     It fails if a checksum here does not match what GitHub stored. -->
-
 - `Tabbin-Setup.exe`: `b001ed8b0260a53798a026810ae883d9c7704943f62f85177080ae0f4620cf69`
 - `Tabbin-Portable.exe`: `dd479a093b113c357ef4bf57d1889f623f0268a3c69f166e0b8b753b97430193`

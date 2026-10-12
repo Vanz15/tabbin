@@ -304,7 +304,7 @@ changed, so upgrading preserves existing notes and settings.
 - Tab font colors now adapt to the luminance of the tab background
 - Smoother hover transitions on dock buttons
 
-## [1.0.0-beta.3] and [1.0.0-beta.4] - 2026-09-13/16
+## 1.0.0-beta.3 and 1.0.0-beta.4 - 2026-09-13/16
 
 No user-facing changes; version bumps used to exercise the auto-update path.
 
@@ -337,6 +337,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.2.3]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.1
 [2.1.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.1.0

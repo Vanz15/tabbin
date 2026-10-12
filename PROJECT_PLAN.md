@@ -2,7 +2,7 @@
 
 Tabbin is a lightweight, hover-activated dock for quick notes. The dock parks on
 a screen edge, reveals itself on hover, and opens notes in native-resizable
-windows. **The current version is 2.2.2.**
+windows. **The current version is 2.2.3.**
 
 ## What is shipped
 
@@ -28,7 +28,7 @@ self-update. Checks run at launch, every 6 hours, and on system resume.
 
 ## Before publishing a release
 
-1. `npm test` — 7 suites, all must pass.
+1. `npm test` — 8 suites, all must pass.
 2. `npm run build:win` — produces `Tabbin-Setup.exe` and `Tabbin-Portable.exe`.
 3. `npm run verify:feed -- --tag vX.Y.Z` — confirms the published feed matches
    the attached artifacts. Judge the feed by **content** (size and SHA-512),
@@ -48,8 +48,9 @@ For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in
   performed manually on one machine. `npm run verify:feed` is the only automated
   guard against a malformed release.
 - **No macOS artifact has ever been published**, despite `build:mac`,
-  `build:all`, and the `build.mac` config block existing. The README advertises
-  DMG/ZIP for macOS; that claim is not yet true.
+  `build:all`, and the `build.mac` config block existing. The README now
+  states plainly that Tabbin is Windows-only and that the mac targets are
+  configured but unverified; the earlier DMG/ZIP claim is withdrawn.
 - **Four-edge docking is not implemented.** Only left and right are supported.
   A horizontal dock would be new layout work rather than a switch.
 - **Drag-out-to-close is not built.** Dragging a note window back into the dock
@@ -61,7 +62,9 @@ For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in
   zone, the note stays in the list, and it must work from both edges.
 - **The test suites are mostly assertions against source text.** They guard
   against accidental regressions but are not behavioral coverage, with the
-  exception of the updater state machine and the release-body checksum guard.
+  exception of the updater state machine, the release-body checksum guard, and
+  the note-order/save-queue suite. A green suite proves the text exists, not
+  that the running app behaves — check UI changes against the app itself.
 
 ## Retracted and corrected claims
 

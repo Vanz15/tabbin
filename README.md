@@ -61,7 +61,7 @@ reorder.
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
 - **Concise header** — search, add, and menu; search expands in place when you want it
 - **Note windows match the dock** — classic opens a solid sheet of the note colour with dark text, glass keeps the dark window
-- **Bundled Geist typeface** — no CDN fetch at runtime, so the UI renders identically offline
+- **Bundled Geist typeface in the dock** — no CDN fetch at runtime, so the dock renders identically offline. The note editor and splash use Segoe UI
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
 - **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, and automatic lists when you type `1. ` or `- `
@@ -69,7 +69,7 @@ reorder.
 - **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from a five-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
-- **Portable and installer builds** — NSIS installer for Windows, DMG/ZIP for macOS
+- **Portable and installer builds** — an NSIS installer for Windows, plus a portable `.exe` that runs without installing
 
 ## Install
 
@@ -167,11 +167,13 @@ npm test
 | `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
 | `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values |
 | `test_save_location.js` | Save folder resolution, validation, and note migration |
+| `test_notes_order.js` | Display order survives a relaunch; every notes write is serialized |
 
 These run on plain Node with no dependencies. Many assert on the *text* of
-source files, which catches regressions but is not behavioral coverage. Two
-suites genuinely execute code: `updater-state.js` is a pure module and the
-checksum guard is imported directly.
+source files, which catches regressions but is not behavioral coverage. Three
+suites genuinely execute code: `updater-state.js` is a pure module, the
+checksum guard is imported directly, and `test_notes_order.js` drives the real
+storage functions against a temp file.
 
 `test_v2_features.js` also parses the dock renderer and checks stylesheet brace
 balance, markup nesting, and settings-row structure. Those guards exist because
@@ -229,7 +231,7 @@ build or an unpackaged dev run, so a test can never replace a real install.
 
 | Method | Description |
 |---|---|
-| `list()` / `get(id)` | Read notes, newest first |
+| `list()` / `get(id)` | Read notes in the dock's persisted order — drag-reorder order, not newest first |
 | `create()` | Create a note and open its window |
 | `update(note)` | Save title, content, color, pinning |
 | `reorder(ids)` | Persist drag-and-drop order |
@@ -271,10 +273,12 @@ reset, so upgrading never costs you your chosen appearance: `clear` becomes
 
 ```bash
 npm run build:win    # Windows: portable + NSIS installer
-npm run build:mac    # macOS: DMG + ZIP
-npm run build:all    # both
 npm run build:dir    # unpacked directory, for debugging
 ```
+
+The mac targets (`npm run build:mac`, `npm run build:all`) are configured in
+`package.json` but unverified — no macOS artifact has ever been published, and
+Tabbin is Windows-only today.
 
 Output lands in `dist/`.
 
