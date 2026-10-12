@@ -165,15 +165,17 @@ npm test
 | `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
 | `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
 | `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
+| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight |
 | `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values |
 | `test_save_location.js` | Save folder resolution, validation, and note migration |
 | `test_notes_order.js` | Display order survives a relaunch; every notes write is serialized |
 
-These run on plain Node with no dependencies. Many assert on the *text* of
-source files, which catches regressions but is not behavioral coverage. Three
-suites genuinely execute code: `updater-state.js` is a pure module, the
-checksum guard is imported directly, and `test_notes_order.js` drives the real
-storage functions against a temp file.
+These run on Node and the bundled Electron runtime, with no test framework.
+Many assert on the *text* of source files, which catches regressions but is not
+behavioral coverage. Four suites execute real code: `updater-state.js` is a pure
+module, the checksum guard is imported directly, `test_notes_order.js` drives
+the storage functions against a temp file, and `test_editor_dom.js` types into
+the real Electron `contenteditable` and checks the rendered DOM.
 
 `test_v2_features.js` also parses the dock renderer and checks stylesheet brace
 balance, markup nesting, and settings-row structure. Those guards exist because

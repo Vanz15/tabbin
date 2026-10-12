@@ -32,5 +32,5 @@ assert.match(main, /show: false/);
 assert.match(updater, /require\('electron-updater'\)/);
 assert.match(main, /ipcMain\.handle\('dock:hide',/);
 assert.match(main, /app\.setAppUserModelId\('com\.vanz15\.tabbin'\)/);
-assert.match(main, /title: 'Tabbin Note'/);
+assert.match(main, /title: 'Tabbin Notes'/);
 console.log('PASS: Tabbin identity, auto-hide, reduced IPC bridge, and beta packaging configuration');

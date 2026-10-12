@@ -28,7 +28,7 @@ self-update. Checks run at launch, every 6 hours, and on system resume.
 
 ## Before publishing a release
 
-1. `npm test` — 8 suites, all must pass.
+1. `npm test` — 9 suites, all must pass.
 2. `npm run build:win` — produces `Tabbin-Setup.exe` and `Tabbin-Portable.exe`.
 3. `npm run verify:feed -- --tag vX.Y.Z` — confirms the published feed matches
    the attached artifacts. Judge the feed by **content** (size and SHA-512),
@@ -63,8 +63,9 @@ For pre-release builds, publish `beta.yml` and set `"channel": "beta"` in
 - **The test suites are mostly assertions against source text.** They guard
   against accidental regressions but are not behavioral coverage, with the
   exception of the updater state machine, the release-body checksum guard, and
-  the note-order/save-queue suite. A green suite proves the text exists, not
-  that the running app behaves — check UI changes against the app itself.
+  the note-order/save-queue suite and Electron editor DOM suite. A green suite
+  proves the text exists, not that the whole running app behaves — check visual
+  UI changes against the app itself.
 
 ## Retracted and corrected claims
 

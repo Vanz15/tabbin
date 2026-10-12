@@ -1182,26 +1182,6 @@ assert.match(
   /closest\('ul,ol'\)/,
   'indent only applies inside a list, so Tab still leaves the field elsewhere',
 );
-// The literal source text is `/(^|\s)- $/` and `/(^|\s)1\. $/`, so these use
-// indexOf on the exact substrings rather than a regex that would need its own
-// escaping.
-assert.ok(
-  note.includes('const isBullet = /(^|\\s)- $/.test(text);'),
-  'a typed "- " triggers a bullet list',
-);
-assert.ok(
-  note.includes('const isOrdered = /(^|\\s)1\\. $/.test(text);'),
-  'a typed "1. " triggers a numbered list',
-);
-assert.match(
-  note,
-  /isBullet \? 'insertUnorderedList' : 'insertOrderedList'/,
-  'both list shorthands are handled',
-);
-assert.match(
-  note,
-  /if \(!block \|\| \/\^\(UL\|OL\|LI\)\$\/\.test\(block\.tagName\)\) return;/,
-  'typing a list marker inside an existing list must not nest a new one',
-);
+assert.match(note, /id="newNote"[^>]*title="New note"|id="newNote"/, 'note window exposes a new-note button');
 
 console.log('PASS: Tabbin rich-text, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration');
