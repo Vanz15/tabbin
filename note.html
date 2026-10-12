@@ -4,9 +4,23 @@
     <meta charset="UTF-8" />
     <title>Tabbin Note</title>
     <style>
+      /* Geist, bundled rather than hotlinked, for the same reason as the dock:
+         a font CDN stalls on a slow link and shows a fallback face when offline.
+         Declared per renderer because each one loads through its own loadFile
+         document with no shared stylesheet, so this is a deliberate copy of
+         dock.html's block rather than a missed extraction. Geist ships as a
+         variable font, so one 29 KB file covers every weight used here. */
+      @font-face {
+        font-family: "Geist";
+        src: url("fonts/Geist-Variable.woff2") format("woff2-variations");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+      }
       /* Frosted-glass note window, ported from the design mockup's `.win`.
          The window is frameless and translucent, so this page paints the whole
-         surface: the OS acrylic supplies the blur, these tokens the tint. */
+         surface: the OS acrylic supplies the blur, these tokens the tint.
+         Segoe UI stays in the chain as the floor if the font ever fails. */
       :root {
         --glass-line: rgba(255, 255, 255, 0.09);
         --glass-hi: rgba(255, 255, 255, 0.06);
@@ -15,7 +29,7 @@
         --ink3: #76767e;
         --c: #8ec5e8;
         font-family:
-          Inter,
+          "Geist",
           "Segoe UI",
           sans-serif;
       }
@@ -30,7 +44,7 @@
         color: var(--ink);
         overflow: hidden;
         font-family:
-          Inter,
+          "Geist",
           "Segoe UI",
           sans-serif;
       }
@@ -198,7 +212,7 @@
         border-bottom: 2px solid color-mix(in srgb, var(--c) 55%, transparent);
         outline: none;
         color: var(--ink);
-        font: 600 21px Inter, "Segoe UI", sans-serif;
+        font: 600 21px "Geist", "Segoe UI", sans-serif;
         letter-spacing: -0.015em;
         padding: 0 0 8px;
         transition: border-color 0.15s;
@@ -250,7 +264,7 @@
         /* Was hardcoded #e4e4e8, which is why the classic variant's ink tokens
            never reached the note body. Use the token so the mode decides. */
         color: var(--ink);
-        font: 14px/1.65 Inter, "Segoe UI", sans-serif;
+        font: 14px/1.65 "Geist", "Segoe UI", sans-serif;
         overflow: auto;
         white-space: pre-wrap;
         scrollbar-width: thin;
@@ -307,7 +321,7 @@
       .tool i,
       .tool u,
       .tool s {
-        font: 600 13.5px Inter, "Segoe UI", sans-serif;
+        font: 600 13.5px "Geist", "Segoe UI", sans-serif;
       }
       .tool:hover {
         background: rgba(255, 255, 255, 0.08);

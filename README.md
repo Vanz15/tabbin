@@ -61,7 +61,7 @@ reorder.
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
 - **Concise header** — search, add, and menu; search expands in place when you want it
 - **Note windows match the dock** — classic opens a solid sheet of the note colour with dark text, glass keeps the dark window
-- **Bundled Geist typeface in the dock** — no CDN fetch at runtime, so the dock renders identically offline. The note editor and splash use Segoe UI
+- **Bundled Geist typeface** — one face across the dock, the note editor and the splash, with no CDN fetch at runtime, so the UI renders identically offline
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
 - **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, and automatic lists when you type `1. ` or `- `
