@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Tabbin Note</title>
+    <title>Tabbin Notes</title>
     <style>
       /* Geist, bundled rather than hotlinked, for the same reason as the dock:
          a font CDN stalls on a slow link and shows a fallback face when offline.
@@ -118,7 +118,8 @@
         scrollbar-color: rgba(28, 28, 34, 0.25) transparent;
       }
       .classic .ib.on {
-        color: #1c1c22;
+        background: color-mix(in srgb, var(--c) 48%, #000);
+        color: #fff;
       }
       .classic .ib.danger:hover {
         background: rgba(0, 0, 0, 0.09);
@@ -190,7 +191,8 @@
         color: var(--ink);
       }
       .ib.on {
-        color: #8ec5e8;
+        background: color-mix(in srgb, var(--c) 48%, #000);
+        color: #fff;
       }
       .ib.danger:hover {
         background: rgba(242, 120, 110, 0.16);
@@ -386,8 +388,13 @@
           <rect x="2" y="5.8" width="7" height="2.4" rx="1.2" fill="#8EC5E8" />
           <rect x="2" y="9.6" width="9" height="2.4" rx="1.2" fill="#9CCFA5" />
         </svg>
-        <span>Tabbin Note</span>
+        <span id="windowTitle">Tabbin Notes</span>
         <div class="wctl">
+          <button id="newNote" class="ib" title="New note" aria-label="New note" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
           <button
             id="pinNote"
             class="ib"
@@ -623,26 +630,32 @@
         syncTools();
       });
       // Automatic lists: typing "1. " or "- " at the start of a block turns it
-      // into a list, the same shorthand every editor supports. execCommand's
-      // insertUnorderedList on an empty-ish first line does the conversion and
-      // swallows the trigger text.
-      editor.addEventListener('input', (e) => {
+      // into a list. execCommand adds its own marker but leaves the typed text,
+      // so remove the trigger first or the line shows "1. 1." or two bullets.
+      editor.addEventListener('input', () => {
         const sel = window.getSelection();
-        if (!sel || !sel.anchorNode) return;
+        if (!sel || !sel.anchorNode || !sel.isCollapsed) return;
         const node = sel.anchorNode;
+        if (node.nodeType !== Node.TEXT_NODE || sel.anchorOffset !== node.textContent.length) return;
         const text = node.textContent || '';
-        const isBullet = /(^|\s)- $/.test(text);
-        const isOrdered = /(^|\s)1\. $/.test(text);
-        if (!isBullet && !isOrdered) return;
-        // Only at the start of a block, and never mid-list.
-        const block = node.nodeType === 3 ? node.parentElement : node;
-        if (!block || /^(UL|OL|LI)$/.test(block.tagName)) return;
-        document.execCommand(isBullet ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+        const trigger = /^(1\. |- )$/.exec(text);
+        if (!trigger) return;
+        const block = node.parentElement;
+        if (!block || block.closest('ul,ol,li')) return;
+        const range = document.createRange();
+        range.setStart(node, text.length - trigger[0].length);
+        range.setEnd(node, text.length);
+        range.deleteContents();
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand(trigger[0] === '- ' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
         markEdited();
         syncTools();
       });
       editor.addEventListener('keyup', syncTools);
       editor.addEventListener('mouseup', syncTools);
+      document.querySelector('#newNote').onclick = () => window.tabbin.create();
       pinNote.onclick = async () => {
         const n = await window.tabbin.toggleNoteAlwaysOnTop(id);
         if (n) apply(n);

@@ -366,7 +366,7 @@ function openNote(id, at) {
     // most expensive repaint the window does. thickFrame: false still resizes
     // (it only drops the Win32 resize frame, not resize support).
     frame: false, thickFrame: false, titleBarStyle: 'hidden',
-    movable: true, maximizable: true, alwaysOnTop: !!note?.alwaysOnTop, title: 'Tabbin Note',
+    movable: true, maximizable: true, alwaysOnTop: !!note?.alwaysOnTop, title: 'Tabbin Notes',
     // Frameless + transparent so the CSS clip-path and colour spine genuinely
     // reach the rounded corners against the desktop. The white-box/ghosting
     // regression that an earlier opaque base guarded against is handled in
