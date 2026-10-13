@@ -2,7 +2,7 @@
 
 Tabbin is a lightweight, hover-activated dock for quick notes. The dock parks on
 a screen edge, reveals itself on hover, and opens notes in native-resizable
-windows. **The current version is 2.2.3.**
+windows. **The current version is 2.2.4.**
 
 ## What is shipped
 

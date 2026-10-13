@@ -5,6 +5,60 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.4] - 2026-10-13
+
+One typeface and one search field across the whole app, a visible pinned
+state, and a save path that no longer reports success it did not achieve.
+No data format change, so existing notes, colours and dock settings carry
+over untouched.
+
+### Added
+
+- **Geist now covers the note editor and the splash, not just the dock.**
+  Both named Inter first, and Inter was never bundled, so they fell back to
+  Segoe UI. Three typefaces shipped in one app while the README described
+  one.
+- **New-note button in the note window.** Matches the dock's + button and
+  opens a second window, leaving the current note alone.
+- **Pinned state is now visible.** The pin previously only tinted its glyph,
+  which was near-invisible against the dock chrome. It now fills with the
+  note's own colour so a pinned note reads at a glance.
+
+### Fixed
+
+- **Typing "1. " or "- " no longer doubles the list marker.** The browser
+  adds its own marker and the typed text was left in place, so a numbered
+  list showed "1. 1." and bullets showed two bullets.
+- **A list marker after existing text no longer converts the line.** Typing
+  "buy milk - " turned the whole line into a bullet list.
+- **The right-edge placeholder is left-aligned.** It shared a text-align
+  rule with the status line, so "Search notes" sat right while the dock
+  hugged the right edge.
+- **A failed save no longer disables every later save.** The write queue
+  chained onto a rejected promise, so one transient failure - an antivirus
+  scan, a sync client holding the file - silently stopped persistence for
+  the rest of the session.
+- **Updating a note that no longer exists reports failure.** It returned
+  success for a write that did nothing.
+- **Deleting a note no longer produces an unfixable error.** Delete and
+  clear-all closed their windows without cancelling a pending save, so the
+  save could arrive after the note was gone. The window now stops trying.
+- **Unsaved text is no longer treated as saved.** The renderer advanced its
+  record of what it had rendered before the write landed, so a failed save
+  looked authoritative and the window refused to repaint itself.
+- **Quitting waits for the pending write.** Quitting during a save discarded
+  it; there was no before-quit hook at all.
+- **Clear-all notes is queued with every other write.** It called the file
+  writer directly, so it could interleave with a save already in flight.
+
+### Changed
+
+- The dock search toggle and field are now one continuous surface instead of
+  two adjacent pills, and the field reacts as a whole on focus.
+- The save status is plain text - "Saved.", "Saving...", and "Failed saving
+  your note." - with a distinct message when the note is gone from disk and
+  the text should be copied before closing. The green status dot is gone.
+
 ## [2.2.3] - 2026-10-07
 
 Three fixes for bugs that shipped since 2.2.1, none of which had anything to do
@@ -337,6 +391,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.2.4]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.4
 [2.2.3]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.2
 [2.2.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.1
