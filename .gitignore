@@ -40,3 +40,8 @@ notes.json.bak
 
 # Agent handoff notes
 .hermes/
+
+# Local agent config — machine-specific, not shared with the repo
+AGENTS.md
+docs/agents/
+.claude/
