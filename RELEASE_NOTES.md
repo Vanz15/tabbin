@@ -77,5 +77,5 @@ Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15
 
 Digests of the assets GitHub actually stored, not the local build output.
 
-- `Tabbin-Setup.exe`: `TBD`
-- `Tabbin-Portable.exe`: `TBD`
+- `Tabbin-Setup.exe`: `d20425fc273517fe6b7e29a3d83f6c159c32ad008d86340b40ab5b465e06e032`
+- `Tabbin-Portable.exe`: `30b1ec404e183695d82fc687e53122c5c8be141d3fd28677dcc057ef72a790aa`
