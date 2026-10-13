@@ -123,6 +123,20 @@
       .searchwrap.open {
         flex: 1;
         min-width: 0;
+        gap: 0;
+        border-radius: 8px;
+        background: rgba(18, 20, 30, 0.5);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(14px);
+      }
+      .searchwrap.open:focus-within {
+        background: rgba(18, 20, 30, 0.72);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      }
+      .searchwrap.open .search {
+        border: 0;
+        border-radius: 0;
+        background: none;
       }
       /* Sized to match .button (the new-note control) so the three header
          glyphs are identical. They were 34px against 30px, which read as a
@@ -233,8 +247,8 @@
         color: var(--ink3);
       }
       .search:focus {
-        background: rgba(255, 255, 255, 0.09);
-        border-color: rgba(255, 255, 255, 0.16);
+        background: none;
+        border-color: transparent;
       }
       .button {
         flex: 0 0 auto;
@@ -558,10 +572,7 @@
       /* Same small blurred chips as classic mode, so the search field and buttons
          stay legible against an arbitrary desktop. */
       .dock.glass .search {
-        background: rgba(18, 20, 30, 0.5);
-        border-color: rgba(255, 255, 255, 0.14);
         color: #fff;
-        backdrop-filter: blur(14px);
       }
       .dock.glass .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
@@ -632,10 +643,7 @@
       /* The header and footer keep their own small blurred chips so the search
          field and buttons stay legible against an arbitrary desktop. */
       .dock.classic .search {
-        background: rgba(18, 20, 30, 0.5);
-        border-color: rgba(255, 255, 255, 0.14);
         color: #fff;
-        backdrop-filter: blur(14px);
       }
       .dock.classic .search::placeholder {
         color: rgba(255, 255, 255, 0.55);
@@ -653,6 +661,14 @@
          against a pale desktop and took the white glyph with it. */
       .dock.classic .search-btn:hover {
         background: rgba(18, 20, 30, 0.78);
+      }
+      .searchwrap.open .search-toggle-inset {
+        border: 0;
+        background: none;
+        backdrop-filter: none;
+      }
+      .searchwrap.open .search-toggle-inset:hover {
+        background: none;
       }
 
       .dock.classic .button {
@@ -725,7 +741,9 @@
         left: auto;
         right: 6px;
       }
-      .dock.right .search,
+      .dock.right .search {
+        text-align: left;
+      }
       .dock.right .update {
         text-align: right;
       }
