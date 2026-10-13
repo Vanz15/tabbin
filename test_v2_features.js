@@ -107,6 +107,11 @@ assert.match(dock, /M3 7a2 2 0 0 1 2-2h4l2 2h8/, 'the save-location button uses 
 assert.doesNotMatch(dock, /M9 13l2 2 4-4/, 'the old check mark is gone');
 // Clear-all is a real destructive path: it wipes, backs up, and closes windows.
 assert.match(main, /ipcMain\.handle\('notes:clear'/);
+assert.match(
+  main,
+  /ipcMain\.handle\('notes:clear'[\s\S]*?await queueWrite\(\[\]\)/,
+  'clear-all must go through the write queue, or it can interleave with an in-flight write',
+);
 assert.match(main, /saveNotes\(\[\]\)/, 'clear-all empties the notes file');
 assert.match(preload, /clear: confirm => ipcRenderer\.invoke\('notes:clear', confirm\)/);
 
@@ -853,7 +858,33 @@ assert.doesNotMatch(
   'save() must not call countWords() directly',
 );
 assert.match(note, /function markEdited\(\)/, 'saved echo is marked as our own');
-assert.match(note, /markEdited\(\);\s*\n\s*await window\.tabbin\.update/, 'mark before update');
+assert.match(note, /await window\.tabbin\.update\(payload\(\)\);\s*\n\s*markEdited\(\);/, 'mark the editor snapshot only after a successful update');
+// The permanent failure is matched on a marker main.js puts in the message,
+// because Electron's invoke rejection keeps the message but not the error code.
+assert.match(main, /throw new Error\(`NOTE_MISSING/, 'a missing note throws a marker the renderer can match');
+assert.match(note, /\/NOTE_MISSING\/\.test\(String\(error && error\.message\)\)/, 'renderer matches the marker on the error message');
+assert.match(
+  note,
+  /'This note is no longer on disk\. Copy your text before closing\.'/,
+  'the permanent failure tells the user to copy their text, since the window still holds it',
+);
+assert.doesNotMatch(note, /Failed saving your note\. Restart/, 'the restart advice was wrong: a missing id never recovers on retry');
+// A pending debounced save must not outlive the note it belongs to.
+assert.match(note, /let noteGone = false;/, 'tracks when this note has been deleted');
+assert.match(note, /if \(!notes\.some\(\(x\) => x\.id === id\)\)/, 'a broadcast without this id marks the note gone');
+assert.match(
+  note,
+  /if \(noteGone\) return;/,
+  'a doomed save is skipped rather than retried forever',
+);
+// A renderer-side flush covers blur/hide but deliberately not the close button.
+assert.match(note, /window\.addEventListener\('blur', flushPending\)/, 'blur flushes a pending save');
+assert.match(note, /document\.addEventListener\('visibilitychange'/, 'hiding the window flushes a pending save');
+assert.match(
+  main,
+  /ipcMain\.handle\('app:quit', async \(\) => \{\s*\n\s*await writeChain;\s*\n\s*app\.quit\(\);/,
+  'quitting awaits the write queue, or the last edit is discarded',
+);
 assert.equal(pkg.build.productName, 'Tabbin');
 assert.ok(!pkg.build.linux);
 assert.match(pkg.build.nsis.include, /installer\.nsh/);
@@ -961,6 +992,12 @@ assert.match(
   /\.searchwrap\.open \.search-toggle-inset \{[^}]*background: none/,
   'expanded search must not keep the collapsed chip behind the field',
 );
+assert.match(ruleBody(dock, '.searchwrap.open {'), /gap: 0;/, 'expanded search shares one continuous surface');
+assert.match(ruleBody(dock, '.searchwrap.open {'), /box-shadow: inset 0 0 0 1px/, 'the wrapper paints the shared field border');
+assert.match(ruleBody(dock, '.searchwrap.open .search {'), /background: none;/, 'input does not paint a second background');
+assert.match(ruleBody(dock, '.searchwrap.open .search {'), /border: 0;/, 'input does not paint a second border');
+assert.match(ruleBody(dock, '.dock.right .search {'), /text-align: left;/, 'right-edge placeholder stays left-aligned');
+assert.match(ruleBody(dock, '.dock.right .update {'), /text-align: right;/, 'right-edge update text remains right-aligned');
 
 // --- Shadow budget -------------------------------------------------------
 // Clear-mode tiles used to carry a 6px/18px drop shadow at rest and a heavier

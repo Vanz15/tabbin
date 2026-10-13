@@ -110,6 +110,11 @@ assert.doesNotMatch(
   /[^e]saveNotes\(notes\)/,
   'notes:create must not call saveNotes() directly — that is the race this guards',
 );
+const updateHandler = main.slice(
+  main.indexOf("ipcMain.handle('notes:update'"),
+  main.indexOf("ipcMain.handle('notes:reorder'"),
+);
+assert.match(updateHandler, /if \(index < 0\) throw new Error/, 'updating a missing note must reject instead of reporting success');
 
 // --- 3. The queue really serializes overlapping writes -----------------------
 // Queue two writes built from the same read, and prove the LAST one wins with a
@@ -126,9 +131,19 @@ assert.doesNotMatch(
     ['a', 'b', 'c'],
     'queued writes must land in order, last write winning',
   );
+
+  const cyclic = { id: 'cyclic' };
+  cyclic.self = cyclic;
+  await assert.rejects(queueWrite([cyclic]), TypeError, 'serialization failure must reject its own queued write');
+  await queueWrite([b, c]);
+  assert.deepStrictEqual(
+    JSON.parse(fs.readFileSync(notesFile, 'utf8')).map((n) => n.id),
+    ['b', 'c'],
+    'a later valid write must recover after an earlier failure',
+  );
   fs.rmSync(dir, { recursive: true, force: true });
   console.log(
-    'PASS: display order survives a relaunch, and every notes write is serialized',
+    'PASS: display order survives relaunch, writes serialize, and queue recovers after failure',
   );
 })().catch((err) => {
   fs.rmSync(dir, { recursive: true, force: true });

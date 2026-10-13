@@ -133,9 +133,11 @@
       .classic .title:focus {
         border-bottom-color: rgba(28, 28, 34, 0.45);
       }
-      /* Save-status dot is a white ring on dark; needs a dark ring on light. */
-      .classic .status .st::before {
-        box-shadow: 0 0 0 1px rgba(28, 28, 34, 0.18);
+      .status .st.failed {
+        color: #f7a39a;
+      }
+      .classic .status .st.failed {
+        color: #a4322a;
       }
 
       /* Custom chrome bar: drag handle plus pin and close, as in the mockup */
@@ -353,20 +355,6 @@
         font-size: 11.5px;
         color: var(--ink3);
       }
-      .status .st::before {
-        content: "";
-        display: inline-block;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #9ccfa5;
-        margin-right: 7px;
-        vertical-align: 1px;
-        transition: background 0.2s;
-      }
-      .status .st.busy::before {
-        background: #f0d58a;
-      }
       .status .words {
         flex: 0 0 auto;
       }
@@ -442,7 +430,7 @@
         ><button class="tool" title="Paragraph" data-cmd="formatBlock" data-value="p">¶</button>
       </div>
       <div class="status">
-        <span class="st" id="saveState">Saved automatically</span>
+        <span class="st" id="saveState">Saved.</span>
         <span class="words" id="wordCount"></span>
       </div>
     </main>
@@ -470,6 +458,10 @@
         body = document.body;
       let timer;
       let wordTimer;
+      // Set once this note's id is gone from a broadcast (deleted, or wiped by
+      // clear-all). From then on this window must not try to save: the id will
+      // never come back, so every attempt fails permanently.
+      let noteGone = false;
       // Writing this window's own state back into the contenteditable tears the
       // caret down and rebuilds the text, so a repaint still in flight from the
       // keystroke gets composited against a surface that no longer exists — the
@@ -542,16 +534,37 @@
         renderedTitle = title.value;
         renderedContent = editor.innerHTML;
       }
-      function save(immediate = false) {
+function save(immediate = false) {
         saveState.textContent = 'Saving…';
+        saveState.classList.remove('failed');
         saveState.classList.add('busy');
         scheduleWordCount();
         clearTimeout(timer);
         const write = async () => {
-          markEdited();
-          await window.tabbin.update(payload());
-          saveState.textContent = 'Saved automatically';
-          saveState.classList.remove('busy');
+          timer = null;
+          // The note can be deleted (or all cleared) while this window still has a
+          // debounced save in flight. Sending it anyway makes the main process
+          // reject a permanently absent id, and retrying can never fix that, so
+          // stop trying rather than leaving the user with an unfixable warning.
+          if (noteGone) return;
+          try {
+            await window.tabbin.update(payload());
+            markEdited();
+            saveState.textContent = 'Saved.';
+            saveState.classList.remove('failed');
+          } catch (error) {
+            console.error('[Tabbin] Note save failed', error);
+            // Electron's invoke rejection keeps only the message, not the error's
+            // own code, so the permanent case is matched on the marker main.js
+            // puts in the text. That case needs real advice: the text is still in
+            // this window and the disk copy is gone for good.
+            saveState.textContent = /NOTE_MISSING/.test(String(error && error.message))
+              ? 'This note is no longer on disk. Copy your text before closing.'
+              : 'Failed saving your note.';
+            saveState.classList.add('failed');
+          } finally {
+            saveState.classList.remove('busy');
+          }
         };
         if (immediate) write();
         else timer = setTimeout(write, 450);
@@ -663,12 +676,33 @@
       closeWin.onclick = () => window.close();
       title.oninput = () => save();
       editor.oninput = () => save();
+      // Flush a pending debounced save when the window stops being the active
+      // one. The 450ms timer lives in this renderer, so typing and then
+      // alt-tabbing away could otherwise drop the last edit. This does not cover
+      // the close button: closing a window fires no blur, so that path is left
+      // to the noteGone guard above rather than a racy teardown-time save.
+      const flushPending = () => {
+        if (timer && !noteGone) {
+          clearTimeout(timer);
+          save(true);
+        }
+      };
+      window.addEventListener('blur', flushPending);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushPending();
+      });
       color.oninput = () => save(true);
       color.onchange = () => save(true);
       document.querySelector('#delete').onclick = () => {
         if (confirm('Delete this note?')) window.tabbin.remove(id);
       };
       window.tabbin.onChanged((notes) => {
+        if (!notes.some((x) => x.id === id)) {
+          noteGone = true;
+          clearTimeout(timer);
+          timer = null;
+          return;
+        }
         const n = notes.find((x) => x.id === id);
         // Don't clobber the field the user is currently typing in.
         if (

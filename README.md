@@ -165,10 +165,10 @@ npm test
 | `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
 | `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
 | `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
-| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight |
+| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight, save success/failure |
 | `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values |
 | `test_save_location.js` | Save folder resolution, validation, and note migration |
-| `test_notes_order.js` | Display order survives a relaunch; every notes write is serialized |
+| `test_notes_order.js` | Display order survives relaunch; writes serialize and recover after failure |
 
 These run on Node and the bundled Electron runtime, with no test framework.
 Many assert on the *text* of source files, which catches regressions but is not

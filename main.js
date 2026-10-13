@@ -199,7 +199,8 @@ function saveNotes(notes) {
 // when two handlers both read via loadNotes() before either's write resolves —
 // concurrent edits to different notes may silently race.
 function queueWrite(notes) {
-  writeChain = writeChain.then(() => saveNotes(notes));
+  const write = () => saveNotes(notes);
+  writeChain = writeChain.then(write, write);
   return writeChain;
 }
 function broadcast(channel, payload) {
@@ -432,7 +433,14 @@ if (hasSingleInstanceLock) app.whenReady().then(() => {
 });
 app.on('window-all-closed', event => event.preventDefault());
 
-ipcMain.handle('app:quit', () => app.quit());
+// Await the write queue before quitting. Every note save is a queued write, and
+// without this the app can tear down while one is still pending, discarding the
+// last edit. There is no before-quit/will-quit hook, so this is the one place
+// the flush can happen.
+ipcMain.handle('app:quit', async () => {
+  await writeChain;
+  app.quit();
+});
 // config:get and config:set must return the SAME shape. The renderer merges
 // whatever comes back over its own cfg, so returning the bare config from
 // config:set silently erased notesPath and left the save-location row stuck on
@@ -531,7 +539,12 @@ ipcMain.handle('notes:create', async () => {
 });
 ipcMain.handle('notes:get', (_, id) => loadNotes().find(note => note.id === id));
 ipcMain.handle('notes:update', async (_, note) => {
-  const notes = loadNotes(); const index = notes.findIndex(item => item.id === note.id); if (index < 0) return;
+  const notes = loadNotes(); const index = notes.findIndex(item => item.id === note.id);
+  // NOTE_MISSING is permanent and unretriable: the window's id was captured once
+  // at load and never renegotiated, so every retry sends the same absent id and
+  // fails identically. The renderer matches on this prefix to show copy-your-text
+  // advice instead of the generic failure, because the window still holds it.
+  if (index < 0) throw new Error(`NOTE_MISSING: cannot update ${note.id}`);
   notes[index] = { ...notes[index], title: note.title, content: note.content, color: note.color || notes[index].color, alwaysOnTop: !!note.alwaysOnTop, updatedAt: Date.now() };
   await queueWrite(notes);
   // The window is frameless and translucent, so the note colour is painted by
@@ -596,7 +609,10 @@ ipcMain.handle('notes:clear', async (_, confirm) => {
   const notes = loadNotes();
   const backup = dataFile() + '.bak';
   try { fs.copyFileSync(dataFile(), backup); } catch { /* ignore missing */ }
-  saveNotes([]);
+  // Through the queue, not directly. A bare saveNotes([]) could interleave with
+  // an in-flight write and be overwritten by it, so "clear all" would sometimes
+  // leave notes behind.
+  await queueWrite([]);
   for (const window of noteWindows.values()) {
     if (!window.isDestroyed()) window.close();
   }

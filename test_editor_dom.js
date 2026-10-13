@@ -10,10 +10,14 @@ const note = {
   alwaysOnTop: false,
 };
 let createCalls = 0;
+let updateCalls = 0;
 const windows = [];
 
 ipcMain.handle('test:get', () => ({ ...note }));
-ipcMain.handle('test:update', (_, patch) => Object.assign(note, patch));
+ipcMain.handle('test:update', (_, patch) => {
+  updateCalls += 1;
+  return Object.assign(note, patch);
+});
 ipcMain.handle('test:toggle-pin', () => {
   note.alwaysOnTop = !note.alwaysOnTop;
   return { ...note };
@@ -23,6 +27,17 @@ ipcMain.handle('test:create', () => {
   return { id: `created-${createCalls}` };
 });
 ipcMain.handle('test:remove', () => true);
+// Mirrors main.js's real rejection shape. Thrown from the main process so the
+// error crosses a genuine IPC boundary before the renderer sees it.
+ipcMain.handle('test:update-missing', () => {
+  throw new Error(`NOTE_MISSING: cannot update ${note.id}`);
+});
+ipcMain.handle('test:broadcast', (_, notes) => {
+  for (const window of windows) {
+    if (!window.isDestroyed()) window.webContents.send('test:changed', notes);
+  }
+  return true;
+});
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -112,6 +127,12 @@ async function main() {
     })`);
     assert.strictEqual(header.documentTitle, 'Tabbin Notes');
     assert.strictEqual(header.visibleTitle, 'Tabbin Notes');
+    const initialSaveState = await glass.webContents.executeJavaScript(`({
+      text: document.querySelector('#saveState').textContent,
+      indicator: getComputedStyle(document.querySelector('#saveState'), '::before').content,
+    })`);
+    assert.strictEqual(initialSaveState.text, 'Saved.');
+    assert.strictEqual(initialSaveState.indicator, 'none', 'save status uses text only, with no dot indicator');
 
     await enterText(glass, '1. ');
     const ordered = await glass.webContents.executeJavaScript(`(() => {
@@ -186,7 +207,86 @@ async function main() {
     assert.ok(luminance(classicFill) < luminance(hexRgb(classicPin.noteColor)), 'classic pinned fill must be darker than the note color');
     assert.strictEqual(classicPin.color, 'rgb(255, 255, 255)', 'classic pin glyph must contrast with the dark fill');
 
-    console.log('PASS: editor DOM converts list markers once, keeps mid-line text, opens notes, and highlights pin state');
+    await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.value = 'Save success test';
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    const savingText = await glass.webContents.executeJavaScript("document.querySelector('#saveState').textContent");
+    assert.strictEqual(savingText, 'Saving…');
+    await waitFor('successful save status', () => glass.webContents.executeJavaScript(
+      "document.querySelector('#saveState').textContent === 'Saved.'",
+    ));
+
+    await glass.webContents.executeJavaScript('window.tabbin.failNextUpdate()');
+    await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.value = 'Save failure test';
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    const savingAgain = await glass.webContents.executeJavaScript("document.querySelector('#saveState').textContent");
+    assert.strictEqual(savingAgain, 'Saving…');
+    await waitFor('failed save status', () => glass.webContents.executeJavaScript(
+      "document.querySelector('#saveState').textContent === 'Failed saving your note.'",
+    ));
+    const failedState = await glass.webContents.executeJavaScript(`({
+      failed: document.querySelector('#saveState').classList.contains('failed'),
+      busy: document.querySelector('#saveState').classList.contains('busy'),
+    })`);
+    assert.ok(failedState.failed, 'failed save receives its error styling');
+    assert.ok(!failedState.busy, 'failed save leaves the busy state');
+
+    await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.value = 'Retry after failure';
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    const retryState = await glass.webContents.executeJavaScript(`({
+      text: document.querySelector('#saveState').textContent,
+      failed: document.querySelector('#saveState').classList.contains('failed'),
+    })`);
+    assert.strictEqual(retryState.text, 'Saving…');
+    assert.ok(!retryState.failed, 'a retry clears the previous failure state');
+    await waitFor('retry save status', () => glass.webContents.executeJavaScript(
+      "document.querySelector('#saveState').textContent === 'Saved.'",
+    ));
+
+    // The permanent case. main.js throws NOTE_MISSING when the id is absent from
+    // loadNotes(), which retrying can never fix. It must produce copy-your-text
+    // advice rather than the generic failure, and it must survive a real IPC
+    // crossing - Electron rewrites the message on the way over.
+    await glass.webContents.executeJavaScript('window.tabbin.failWithMissingNote()');
+    await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.value = 'Permanently unsaved';
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await waitFor('missing-note save status', () => glass.webContents.executeJavaScript(
+      "document.querySelector('#saveState').textContent === 'This note is no longer on disk. Copy your text before closing.'",
+    ), 8000);
+    const missingState = await glass.webContents.executeJavaScript("document.querySelector('#saveState').classList.contains('failed')");
+    assert.ok(missingState, 'the missing-note failure is styled as a failure');
+
+    // Once a broadcast says this id is gone, the window must stop trying to
+    // save: the id is never renegotiated, so every later attempt fails the same
+    // way forever.
+    const beforeGone = updateCalls;
+    await glass.webContents.executeJavaScript('window.tabbin.broadcast([])');
+    await delay(100);
+    await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.value = 'Typed after deletion';
+      title.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`);
+    await delay(700);
+    assert.strictEqual(
+      updateCalls,
+      beforeGone,
+      'an edit after this note was deleted must not attempt another doomed save',
+    );
+
+    console.log('PASS: editor DOM covers list conversion, note actions, pin highlight, and save recovery');
   } finally {
     for (const window of windows) {
       if (!window.isDestroyed()) window.destroy();

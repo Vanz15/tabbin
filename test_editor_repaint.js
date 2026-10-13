@@ -14,9 +14,8 @@ assert.match(note, /let renderedContent = null;/);
 assert.match(note, /let renderedTitle = null;/);
 assert.match(note, /if \(nextContent !== renderedContent\)/);
 
-// Replay the same sequence the page performs. markEdited() is part of the flow:
-// save() captures the current DOM before dispatching the update, so the echo of
-// that update is recognised as this window's own and skipped.
+// Replay the same sequence the page performs. markEdited() runs after the save
+// resolves, so only persisted content is treated as this window's own echo.
 function makeEditor() {
   const editor = { innerHTML: '' };
   const title = { value: '' };
@@ -54,7 +53,7 @@ assert.strictEqual(app.writes(), 2, 'first apply writes title and content');
 assert.strictEqual(editor.innerHTML, '<p>hello</p>');
 
 // The save round-trip echoes this window's own state back. markEdited() runs
-// before the update, so the echo is recognised as our own.
+// after the write succeeds, so the echo is recognised as our own.
 markEdited();
 apply({ title: 'T', content: '<p>hello</p>' });
 assert.strictEqual(app.writes(), 2, 'identical echo must write nothing');
