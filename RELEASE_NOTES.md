@@ -37,15 +37,6 @@ formatting still renders through a legacy alias.
 - **The popovers report their state to assistive technology** with
   `aria-pressed`, and Escape closes them.
 
-### Notes
-
-- No data format change. Your existing notes, colours and dock settings carry
-  over untouched.
-- Auto-update applies to the installed build only.
-- Checksums are added after the release assets are uploaded, from GitHub's
-  stored digests.
-- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
-
 ### Install
 
 Windows-only, x64. The setup file installs Tabbin and receives updates
@@ -56,6 +47,13 @@ automatically.
 3. Pick where to install it, finish the installer, and launch it.
 
 Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.0/Tabbin-Portable.exe) runs straight from the folder, but cannot update itself.
+
+### Notes
+
+- No data format change. Your existing notes, colours and dock settings carry
+  over untouched.
+- Auto-update applies to the installed build only.
+- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
 
 ## Tabbin v2.2.4 - one typeface, one search box, and saves that tell you the truth
 
