@@ -55,6 +55,13 @@ Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15
 - Auto-update applies to the installed build only.
 - Full notes in the [README](https://github.com/Vanz15/tabbin#install).
 
+### Checksums
+
+Digests of the assets GitHub actually stored, not the local build output.
+
+- `Tabbin-Setup.exe`: `fd3b04a7d5f099627fb8a2727fb794dd4abbb19ffb1345e1807758bfa6622f13`
+- `Tabbin-Portable.exe`: `75718b1d04b9aa534d8cd0032d48cc8037c000e41b4212d4a7f83d54cef66977`
+
 ## Tabbin v2.2.4 - one typeface, one search box, and saves that tell you the truth
 
 A consistency release. The dock and the note windows finally look like the same
