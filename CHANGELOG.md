@@ -5,6 +5,46 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-24
+
+Type that behaves the way you want, ten note colours, and a fullscreen mode
+that leaves the note window the size it found it. Notes keep their old font
+values: a saved `Caveat` maps to Parisienne on load, and existing inline
+formatting still renders.
+
+### Added
+
+- **Five bundled typefaces.** Geist, Inter, Public Sans, Gelasio and
+  Parisienne ship with the app under the SIL Open Font License, so a note looks
+  the same on a machine that never installed the font. The body face applies to
+  the current selection; the title face is one per note.
+- **Per-selection text sizes.** 12, 14, 16, 18, 20 and 24 px in the toolbar,
+  with the title scaled to 1.5× the note's base size.
+- **Ten pastel note colours.** The colour control is now one swatch that opens
+  a popover of all ten, and each colour is checked for 4.5:1 contrast against
+  the note text.
+- **Fullscreen notes.** The header button fills the screen and clears its
+  highlight when you leave, whether you use the button, `Esc`, or the OS.
+
+### Changed
+
+- **The script typeface is Parisienne, not Caveat.** Caveat was never bundled
+  and was silently replaced by the fallback face. Notes saved with the old
+  value map to Parisienne, and inline Caveat spans still render through a
+  legacy alias.
+- **Leaving fullscreen restores a 430×430 window.** Previously the fullscreen
+  size leaked into the window, so the next open could cover the screen.
+
+### Fixed
+
+- **A fullscreen or screen-sized window is no longer saved as the note size.**
+  The resize saver skips fullscreen, maximized and screen-sized windows, so
+  reopening a note cannot fill the display.
+- **The font and size controls show the caret's real formatting** when the
+  editor or the title has focus, instead of keeping a stale selection.
+- **The text and font popovers report their state to assistive technology**
+  with `aria-pressed`, and Escape closes them.
+
 ## [2.2.4] - 2026-10-13
 
 One typeface and one search field across the whole app, a visible pinned
@@ -391,6 +431,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.3.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.0
 [2.2.4]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.4
 [2.2.3]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.3
 [2.2.2]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.2

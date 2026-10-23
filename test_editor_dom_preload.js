@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('tabbin', {
     return ipcRenderer.invoke('test:update', note);
   },
   toggleNoteAlwaysOnTop: (id) => ipcRenderer.invoke('test:toggle-pin', id),
+  toggleNoteFullscreen: (id) => ipcRenderer.invoke('test:toggle-fullscreen', id),
+  onNoteFullscreen: (callback) => ipcRenderer.on('test:fullscreen', (_, on) => callback(on)),
   broadcast: (notes) => ipcRenderer.invoke('test:broadcast', notes),
   remove: (id) => ipcRenderer.invoke('test:remove', id),
   onChanged: (callback) => ipcRenderer.on('test:changed', (_, notes) => callback(notes)),

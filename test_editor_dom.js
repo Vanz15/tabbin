@@ -11,6 +11,7 @@ const note = {
 };
 let createCalls = 0;
 let updateCalls = 0;
+let fullScreenState = false;
 const windows = [];
 
 ipcMain.handle('test:get', () => ({ ...note }));
@@ -25,6 +26,10 @@ ipcMain.handle('test:toggle-pin', () => {
 ipcMain.handle('test:create', () => {
   createCalls += 1;
   return { id: `created-${createCalls}` };
+});
+ipcMain.handle('test:toggle-fullscreen', () => {
+  fullScreenState = !fullScreenState;
+  return fullScreenState;
 });
 ipcMain.handle('test:remove', () => true);
 // Mirrors main.js's real rejection shape. Thrown from the main process so the
@@ -251,6 +256,98 @@ async function main() {
       "document.querySelector('#saveState').textContent === 'Saved.'",
     ));
 
+    // Mixed fonts: a selection takes a face inline, the title takes one for the
+    // whole note, and both survive the save round-trip.
+    const parisienneHtml = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      editor.innerHTML = '<p>hello world</p>';
+      editor.focus();
+      const range = document.createRange();
+      range.selectNodeContents(editor.querySelector('p'));
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      const button = document.querySelector('#fonts button[data-font="Parisienne"]');
+      button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      return editor.innerHTML;
+    })()`);
+    assert.match(parisienneHtml, /Parisienne/, `selected text must take the chosen face: ${parisienneHtml}`);
+    await delay(600);
+    assert.match(note.content, /Parisienne/, 'the inline font must be saved with the note content');
+
+    const titleFontVar = await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.focus();
+      title.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      const button = document.querySelector('#fonts button[data-font="Gelasio"]');
+      button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      return getComputedStyle(document.documentElement).getPropertyValue('--title-font').trim();
+    })()`);
+    assert.match(titleFontVar, /Gelasio/, `title face must apply immediately: ${titleFontVar}`);
+    await delay(600);
+    assert.strictEqual(note.titleFont, 'Gelasio', 'the title face must be saved on the note');
+
+    // With the title focused, the menu must report the note's title face rather
+    // than the editor's default.
+    const titleMenu = await glass.webContents.executeJavaScript(`(() => {
+      const title = document.querySelector('#title');
+      title.focus();
+      title.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      document.querySelector('#fontBtn').dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+      );
+      const pressed = document.querySelector('#fonts button[data-font="Gelasio"]')
+        .getAttribute('aria-pressed');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return pressed;
+    })()`);
+    assert.strictEqual(titleMenu, 'true', 'the font menu must reflect the title face');
+
+    // Per-selection size: A+ steps the note's base size, scales the title with
+    // it (x1.5), and gives the selected range its own size.
+    const sized = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      editor.focus();
+      editor.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.querySelector('.tool[data-size="1"]').dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+      );
+      return {
+        size: getComputedStyle(document.documentElement).getPropertyValue('--note-size').trim(),
+        html: editor.innerHTML,
+        titleSize: getComputedStyle(document.querySelector('#title')).fontSize,
+      };
+    })()`);
+    assert.strictEqual(sized.size, '16px', `base size must step to 16px: ${sized.size}`);
+    assert.match(sized.html, /<font size=/, `the selected range must carry its own size: ${sized.html}`);
+    assert.strictEqual(sized.titleSize, '24px', 'the title scales with the body (16 x 1.5)');
+    await delay(600);
+    assert.strictEqual(note.fontSize, 16, 'the base size must be saved on the note');
+
+    // Fullscreen is a momentary mode: toggled through the bridge, reflected on
+    // the button, and exited by Escape.
+    await glass.webContents.executeJavaScript("document.querySelector('#fullscreen').click()");
+    await waitFor('fullscreen on', () => glass.webContents.executeJavaScript(
+      "document.querySelector('#fullscreen').classList.contains('on')",
+    ));
+    assert.strictEqual(
+      await glass.webContents.executeJavaScript("document.querySelector('#fullscreen').getAttribute('aria-pressed')"),
+      'true',
+      'the fullscreen button reflects the active state',
+    );
+    await glass.webContents.executeJavaScript(
+      "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))",
+    );
+    await waitFor('fullscreen off', () => glass.webContents.executeJavaScript(
+      "!document.querySelector('#fullscreen').classList.contains('on')",
+    ));
+    assert.strictEqual(fullScreenState, false, 'Escape exits fullscreen');
+
     // The permanent case. main.js throws NOTE_MISSING when the id is absent from
     // loadNotes(), which retrying can never fix. It must produce copy-your-text
     // advice rather than the generic failure, and it must survive a real IPC
@@ -286,7 +383,7 @@ async function main() {
       'an edit after this note was deleted must not attempt another doomed save',
     );
 
-    console.log('PASS: editor DOM covers list conversion, note actions, pin highlight, and save recovery');
+    console.log('PASS: editor DOM covers list conversion, note actions, pin highlight, save recovery, mixed fonts, sizes, and fullscreen');
   } finally {
     for (const window of windows) {
       if (!window.isDestroyed()) window.destroy();

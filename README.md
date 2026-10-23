@@ -43,16 +43,18 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.2.4** gives the whole app one typeface and one search box, makes the
-> pinned state visible, and fixes the list shorthand that doubled your marker.
-> It also stops saves reporting success they did not achieve. **v2.2.3** fixed
-> your note order resetting on restart, a lost note when creating one during a
-> save, and an internal error on every drag-out. **v2.2.2** added editor
-> keyboard shortcuts — align, strikethrough, indent, and automatic lists — and
-> fixed the Save location row so it shows the folder your notes are actually in.
-> **v2.2.1** brought back the classic coloured-note look and lets you drag a
-> note out of the dock to open it. **v1.0.1** remains available on the releases
-> page if you prefer the older tab-based dock.
+> **v2.3.0** lets you set the body text to any bundled typeface, gives the title
+> its own face, adds per-selection text sizes, ten pastel note colours, and a
+> true fullscreen mode that returns to the normal note size when you leave.
+> **v2.2.4** gave the whole app one typeface and one search box, made the pinned
+> state visible, and fixed the list shorthand that doubled your marker.
+> **v2.2.3** fixed your note order resetting on restart, a lost note when
+> creating one during a save, and an internal error on every drag-out.
+> **v2.2.2** added editor keyboard shortcuts — align, strikethrough, indent, and
+> automatic lists — and fixed the Save location row so it shows the folder your
+> notes are actually in. **v2.2.1** brought back the classic coloured-note look
+> and lets you drag a note out of the dock to open it. **v1.0.1** remains
+> available on the releases page if you prefer the older tab-based dock.
 
 ## Features
 
@@ -64,12 +66,15 @@ reorder.
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
 - **Concise header** — search, add, and menu; search expands in place when you want it
 - **Note windows match the dock** — classic opens a solid sheet of the note colour with dark text, glass keeps the dark window
-- **Bundled Geist typeface** — one face across the dock, the note editor and the splash, with no CDN fetch at runtime, so the UI renders identically offline
+- **Five bundled typefaces** — Geist, Inter, Public Sans, Gelasio and Parisienne, all SIL OFL and shipped in the app, so notes render identically offline; choose a body face per selection and a separate face for the title
+- **Per-selection text sizes** — 12 to 24 px for the body, with the title scaled from the note's base size
+- **Ten pastel note colours** — one swatch opens a popover of all ten, and every colour clears WCAG AA contrast against the note text
+- **Fullscreen notes** — the header button fills the screen; leaving returns the note to its normal 430×430 window
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
 - **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, and automatic lists when you type `1. ` or `- `
 - **Native-resizable windows** — note windows remember their size across sessions
-- **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from a five-tone palette
+- **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from the ten-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
 - **Auto-updates** — checks GitHub releases at launch, every 6 hours, and on system resume; downloads in the background and installs when you quit
 - **Portable and installer builds** — an NSIS installer for Windows, plus a portable `.exe` that runs without installing
@@ -164,12 +169,12 @@ npm test
 | Suite | Covers |
 |---|---|
 | `test_sticky_dock.js` | Dock behavior, reduced IPC bridge, packaging config |
-| `test_v2_features.js` | Rich-text commands, drag reorder, resizing, pinning, installer config |
+| `test_v2_features.js` | Rich-text commands, fonts, text sizes, fullscreen, drag reorder, pinning, installer config |
 | `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
 | `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
 | `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
-| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight, save success/failure |
-| `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values |
+| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight, title font menu, save success/failure |
+| `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values, text contrast |
 | `test_save_location.js` | Save folder resolution, validation, and note migration |
 | `test_notes_order.js` | Display order survives relaunch; writes serialize and recover after failure |
 
@@ -250,10 +255,11 @@ build or an unpackaged dev run, so a test can never replace a real install.
 | `pickFolder()` | Choose a save location |
 | `clear(confirm)` | Delete every note |
 | `toggleNoteAlwaysOnTop(id)` | Pin a note |
+| `toggleNoteFullscreen(id)` | Enter or leave fullscreen for a note; resolves to the new state |
 | `updateStatus()` | Current update snapshot |
 | `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` | Drive an update |
 | `dismissUpdateNudge()` | Dismiss the portable-build notice |
-| `onChanged(cb)` / `onConfigChanged(cb)` / `onUpdateState(cb)` | Subscribe to changes |
+| `onChanged(cb)` / `onConfigChanged(cb)` / `onUpdateState(cb)` / `onNoteFullscreen(cb)` | Subscribe to changes |
 
 ### Data storage
 
@@ -261,7 +267,7 @@ Stored in the Electron user data directory (`app.getPath('userData')`):
 
 | File | Contents |
 |---|---|
-| `notes.json` | Notes — id, title, content, color, pinning, timestamp |
+| `notes.json` | Notes — id, title, content, color, pinning, `titleFont`/`fontSize`, timestamp |
 | `config.json` | Dock `edge` (left/right), `dockBg` (classic/glass), `dockWidth` (compact/roomy), `edgeHover`, `launchOnStartup`, `saveLocation`, note window `noteWidth`/`noteHeight` |
 | `update-state.json` | Last check timestamp, portable-notice dismissal |
 | `update.log` | Updater diagnostics, since packaged Windows builds discard stdout |

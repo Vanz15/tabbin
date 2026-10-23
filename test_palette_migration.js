@@ -30,8 +30,23 @@ const factory = new Function(
 );
 const { palette, hexToRgb, nearestPaletteColor, migrateNoteColors } = factory();
 
-assert.strictEqual(palette.length, 5, 'glass palette has five colours');
+assert.strictEqual(palette.length, 10, 'glass palette has ten colours');
 assert.ok(palette.every((c) => /^#[0-9A-Fa-f]{6}$/.test(c)), 'palette entries are 6-digit hex');
+
+// Classic mode paints the whole note sheet in the note colour with dark ink
+// (#1c1c22), so every pastel must keep that ink readable (WCAG AA 4.5:1).
+const luminance = (rgb) => {
+  const linear = rgb.map((channel) => {
+    const v = channel / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+};
+const inkLuminance = luminance([0x1c, 0x1c, 0x22]);
+for (const c of palette) {
+  const ratio = (luminance(hexToRgb(c)) + 0.05) / (inkLuminance + 0.05);
+  assert.ok(ratio >= 4.5, `${c} must keep classic dark ink readable, got ${ratio.toFixed(2)}:1`);
+}
 
 // The six legacy flat colours must all map onto the new palette.
 const LEGACY = ['#f5c542', '#66d9c7', '#ff8b8b', '#a98bff', '#76b7ff', '#f29b72'];
@@ -88,4 +103,4 @@ assert.strictEqual(rich[0].title, 'T');
 assert.strictEqual(rich[0].content, '<b>hi</b>');
 assert.strictEqual(rich[0].alwaysOnTop, true);
 
-console.log('PASS: palette migration (legacy mapping, idempotence, unparseable colours, data preservation)');
+console.log('PASS: palette migration (legacy mapping, idempotence, unparseable colours, data preservation, classic contrast)');

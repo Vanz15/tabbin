@@ -2,15 +2,16 @@
 
 Tabbin is a lightweight, hover-activated dock for quick notes. The dock parks on
 a screen edge, reveals itself on hover, and opens notes in native-resizable
-windows. **The current version is 2.2.4.**
+windows. **The current version is 2.3.0.**
 
 ## What is shipped
 
 A transparent auto-hide dock on a screen edge, two appearances (`classic`
-coloured tiles, `glass` floating cards), rich-text note editing, drag-to-reorder
-inside the dock, drag-out-to-open past the dock edge, per-note pinning and
-colour, single-instance enforcement, and background auto-updates for the
-installed build. Notes and settings persist in the Electron user data
+coloured tiles, `glass` floating cards), rich-text note editing with five
+bundled typefaces, per-selection text sizes and ten pastel colours, drag-to-
+reorder inside the dock, drag-out-to-open past the dock edge, per-note pinning,
+colour and fullscreen, single-instance enforcement, and background auto-updates
+for the installed build. Notes and settings persist in the Electron user data
 directory with atomic writes and a backup fallback.
 
 Configuration lives in a **settings panel inside the dock**, reached from the

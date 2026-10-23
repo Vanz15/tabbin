@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('tabbin', {
   config: () => ipcRenderer.invoke('config:get'),
   setConfig: patch => ipcRenderer.invoke('config:set', patch),
   toggleNoteAlwaysOnTop: id => ipcRenderer.invoke('notes:toggle-always-on-top', id),
+  toggleNoteFullscreen: id => ipcRenderer.invoke('notes:toggle-fullscreen', id),
+  onNoteFullscreen: callback => ipcRenderer.on('note:fullscreen', (_, on) => callback(on)),
   updateStatus: () => ipcRenderer.invoke('updates:status'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   downloadUpdate: () => ipcRenderer.invoke('updates:download'),

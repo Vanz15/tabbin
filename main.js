@@ -64,7 +64,18 @@ const dataFile = () => path.join(notesDir(), 'notes.json');
 // six flat tab colours, which were picked for opaque tabs and read as harsh
 // against a dark translucent surface. Passed to note.html via the load query so
 // the dots and the window gradient always agree with this list.
-const palette = ['#F2A38F', '#9CCFA5', '#8EC5E8', '#F0D58A', '#B9A7E8'];
+const palette = ['#F2A38F', '#9CCFA5', '#8EC5E8', '#F0D58A', '#B9A7E8', '#F2AFBF', '#F5C79B', '#A9DEC9', '#B7CDEE', '#D9B8E0'];
+// Note body/title faces. Every one is bundled in fonts/ (SIL OFL), so a note
+// renders the same offline and on a machine that never installed the font.
+// The menu only offers these, and the title face is allowlist-checked on save.
+const noteFonts = ['Geist', 'Inter', 'Public Sans', 'Gelasio', 'Parisienne'];
+const defaultNoteFont = noteFonts[0];
+// Base body size in px. A selection can carry its own size inline; this is the
+// note's default and the value the title scales from (title = base x 1.5).
+const noteSizes = [12, 14, 16, 18, 20, 24];
+const defaultNoteSize = 14;
+// Window size a note opens at, and the size it returns to after fullscreen.
+const DEFAULT_NOTE_SIZE = 430;
 const seed = [
   { id: 'welcome', title: 'Welcome to Tabbin', content: 'Hover a colored tab to preview it. Click to open a full note window.', color: '#F0D58A', updatedAt: Date.now() },
   { id: 'ideas', title: 'Ideas', content: 'Capture ideas quickly, then keep working without losing your train of thought.', color: '#9CCFA5', updatedAt: Date.now() - 1000 },
@@ -86,7 +97,7 @@ const DOCK_BACKGROUNDS = ['classic', 'glass'];
 // so a hand-edited config still opens the app.
 const LEGACY_DOCK_BACKGROUNDS = { clear: 'classic', bare: 'glass', glass: 'glass' };
 const defaultConfig = {
-  edge: 'left', edgeHover: true, noteWidth: 430, noteHeight: 430,
+  edge: 'left', edgeHover: true, noteWidth: DEFAULT_NOTE_SIZE, noteHeight: DEFAULT_NOTE_SIZE,
   dockWidth: 'compact', dockBg: 'classic', saveLocation: 'same', launchOnStartup: false
 };
 
@@ -349,6 +360,14 @@ function openNote(id, at) {
   const note = loadNotes().find(item => item.id === id);
   const noteColor = note && note.color || palette[0];
   const config = loadConfig();
+  // A screen-sized saved size is a leak from fullscreen, not a choice: it would
+  // reopen the note covering the display with no easy grab point. Fall back to
+  // the default instead.
+  const workArea = screen.getPrimaryDisplay().workArea;
+  const savedWidth = config.noteWidth || DEFAULT_NOTE_SIZE;
+  const savedHeight = config.noteHeight || DEFAULT_NOTE_SIZE;
+  const noteWidth = savedWidth < workArea.width ? savedWidth : DEFAULT_NOTE_SIZE;
+  const noteHeight = savedHeight < workArea.height ? savedHeight : DEFAULT_NOTE_SIZE;
   // A per-window AppUserModelID. Sharing the app's makes Windows group every
   // window under one identity and take the taskbar icon from the registered
   // shortcut rather than from BrowserWindow.icon, so a note showed a generic
@@ -356,7 +375,7 @@ function openNote(id, at) {
   // the per-window `icon` actually take effect.
   const window = new BrowserWindow({
     appId: `com.vanz15.tabbin.note.${id}`,
-    width: config.noteWidth || 430, height: config.noteHeight || 430, minWidth: 300, minHeight: 260, resizable: true,
+    width: noteWidth, height: noteHeight, minWidth: 300, minHeight: 260, resizable: true,
     // Frameless with custom chrome drawn in note.html, matching the mockup's
     // logo bar with pin/close controls. titleBarStyle 'hidden' keeps the native
     // controls available on hover via customButtonsOnHover-free behaviour, while
@@ -383,18 +402,39 @@ function openNote(id, at) {
     window.setPosition(Math.round(at.x - w / 2), Math.round(at.y - 20), false);
   }
   noteWindows.set(id, window);
+  window.__tabbinFullscreen = false;
   // Pass the palette so the colour dots and the window gradient always agree
   // with the colours the main process assigns to new notes.
   // `bg` lets the page follow the dock's appearance: classic notes are solid
   // colour, glass notes keep the dark window. Passed as a query param alongside
   // the palette for the same reason, rather than a second IPC round-trip.
   window.loadFile('note.html', {
-    query: { id, palette: palette.join(','), bg: migrateDockBg(config.dockBg) }
+    query: { id, palette: palette.join(','), bg: migrateDockBg(config.dockBg), fonts: noteFonts.join('|') }
   });
   let resizeTimer;
   window.on('resize', () => {
+    // Fullscreen fires a resize with the monitor's dimensions. Saving that would
+    // make every future note open at screen size, so only windowed sizes count.
+    if (window.__tabbinFullscreen || window.isFullScreen() || window.isMaximized()) return;
+    const [width, height] = window.getSize();
+    const area = screen.getDisplayMatching(window.getBounds()).workArea;
+    // The resize can land before the fullscreen flag flips; a window that fills
+    // the display is a transition, not a user choice.
+    if (width >= area.width && height >= area.height) return;
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { const [width, height] = window.getSize(); saveConfig({ ...loadConfig(), noteWidth: width, noteHeight: height }); }, 250);
+    resizeTimer = setTimeout(() => { saveConfig({ ...loadConfig(), noteWidth: width, noteHeight: height }); }, 250);
+  });
+  // Tell the page when the OS leaves fullscreen too (Esc handled by the page,
+  // but macOS and window-manager shortcuts change it without the page asking).
+  const sendFullscreen = on => {
+    if (!window.isDestroyed()) window.webContents.send('note:fullscreen', on);
+  };
+  window.on('enter-full-screen', () => { window.__tabbinFullscreen = true; sendFullscreen(true); });
+  window.on('leave-full-screen', () => {
+    window.__tabbinFullscreen = false;
+    // Return to the small default so the note is easy to grab and resize again.
+    setImmediate(() => { if (!window.isDestroyed()) window.setSize(DEFAULT_NOTE_SIZE, DEFAULT_NOTE_SIZE); });
+    sendFullscreen(false);
   });
   window.on('closed', () => noteWindows.delete(id));
 }
@@ -530,7 +570,7 @@ ipcMain.handle('notes:create', async () => {
   // The old "New note color" settings choice was removed — set the colour from the
   // note window's colour dots after creating the note instead.
   const color = palette[notes.length % palette.length];
-  const note = { id: crypto.randomUUID(), title: 'Untitled note', content: '', color, updatedAt: Date.now() };
+  const note = { id: crypto.randomUUID(), title: 'Untitled note', content: '', color, titleFont: defaultNoteFont, fontSize: defaultNoteSize, updatedAt: Date.now() };
   notes.unshift(note);
   await queueWrite(notes);
   broadcast('notes:changed', notes);
@@ -545,7 +585,7 @@ ipcMain.handle('notes:update', async (_, note) => {
   // fails identically. The renderer matches on this prefix to show copy-your-text
   // advice instead of the generic failure, because the window still holds it.
   if (index < 0) throw new Error(`NOTE_MISSING: cannot update ${note.id}`);
-  notes[index] = { ...notes[index], title: note.title, content: note.content, color: note.color || notes[index].color, alwaysOnTop: !!note.alwaysOnTop, updatedAt: Date.now() };
+  notes[index] = { ...notes[index], title: note.title, content: note.content, color: note.color || notes[index].color, titleFont: noteFonts.includes(note.titleFont) ? note.titleFont : (notes[index].titleFont || defaultNoteFont), fontSize: noteSizes.includes(note.fontSize) ? note.fontSize : (notes[index].fontSize || defaultNoteSize), alwaysOnTop: !!note.alwaysOnTop, updatedAt: Date.now() };
   await queueWrite(notes);
   // The window is frameless and translucent, so the note colour is painted by
   // the renderer (note.html) rather than by the native window background.
@@ -601,6 +641,16 @@ ipcMain.handle('notes:toggle-always-on-top', async (_, id) => {
   const noteWindow = noteWindows.get(id); if (noteWindow && !noteWindow.isDestroyed()) noteWindow.setAlwaysOnTop(!!notes[index].alwaysOnTop, 'floating');
   broadcast('notes:changed', notes);
   return notes[index];
+});
+ipcMain.handle('notes:toggle-fullscreen', (_, id) => {
+  const window = noteWindows.get(id);
+  if (!window || window.isDestroyed()) return false;
+  // Track the state ourselves: isFullScreen() can still report the old value
+  // right after a toggle, which made a fast second click re-enter fullscreen.
+  const next = !window.__tabbinFullscreen;
+  window.__tabbinFullscreen = next;
+  window.setFullScreen(next);
+  return next;
 });
 // Clear every note at once (Settings "Clear all notes"). Backed up first so
 // a single accidental tap cannot wipe the file irrecoverably.

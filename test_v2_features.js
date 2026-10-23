@@ -31,6 +31,65 @@ assert.ok(
   fs.existsSync('fonts/Geist-Variable.woff2'),
   'bundled Geist font must exist in the project',
 );
+// Every selectable note font ships with the app, so choosing one never depends
+// on the font being installed. All of them are SIL OFL, so the licence text
+// must ship beside them.
+for (const [family, file] of [
+  ['Geist', 'Geist-Variable.woff2'],
+  ['Inter', 'Inter-Variable.woff2'],
+  ['Public Sans', 'PublicSans-Variable.woff2'],
+  ['Gelasio', 'Gelasio-Variable.woff2'],
+  ['Parisienne', 'Parisienne-Regular.woff2'],
+]) {
+  assert.ok(fs.existsSync(`fonts/${file}`), `${family} font must be bundled`);
+  assert.ok(
+    fs.existsSync(`fonts/licenses/OFL-${family.replace(' ', '')}.txt`),
+    `${family} OFL text must ship`,
+  );
+  assert.match(note, new RegExp(`font-family: "${family}";`), `${family} must have an @font-face`);
+}
+assert.match(main, /const noteFonts = \['Geist', 'Inter', 'Public Sans', 'Gelasio', 'Parisienne'\]/);
+assert.match(main, /titleFont: noteFonts\.includes\(note\.titleFont\)/, 'unknown title fonts are rejected');
+assert.match(note, /params\.get\('fonts'\)/, 'the note page receives the font allowlist');
+assert.match(note, /id="fontBtn"/);
+assert.match(note, /execCommand\('fontName'/, 'body fonts apply to the selected range');
+assert.match(
+  note,
+  /n\.titleFont === 'Caveat' \? 'Parisienne'/,
+  'notes saved with the retired Caveat title face migrate to Parisienne',
+);
+assert.match(note, /if \(nextSize !== renderedSize\)/, 'a stale save echo must not revert the size');
+assert.match(note, /renderedSize = baseSize/, 'local size changes mark what is rendered');
+assert.match(note, /role="group" aria-label="Text font"/, 'the font menu is a labelled button group');
+assert.match(note, /aria-pressed/, 'the font menu reflects the current face with aria-pressed');
+
+// Base text size is per note, stepped from a list both processes must agree on,
+// and the title scales from it.
+assert.match(main, /const noteSizes = \[12, 14, 16, 18, 20, 24\]/);
+assert.match(main, /fontSize: noteSizes\.includes\(note\.fontSize\)/, 'unknown sizes are rejected');
+assert.match(
+  note,
+  /const SIZE_STEPS = \[12, 14, 16, 18, 20, 24\]/,
+  'renderer and main must share the same size steps',
+);
+assert.match(note, /font-size: calc\(var\(--note-size/, 'the title scales from the body size');
+assert.match(note, /\.editor font\[size="3"\] \{ font-size: 16px; \}/, 'ranges map to real px sizes');
+assert.match(note, /data-size="1"/);
+assert.match(note, /fontSize: baseSize/);
+
+// Fullscreen is a real window state, and it must not leak into the saved
+// windowed size.
+assert.match(main, /notes:toggle-fullscreen/);
+assert.match(main, /window\.setFullScreen\(next\)/);
+assert.match(main, /window\.__tabbinFullscreen \|\| window\.isFullScreen\(\) \|\| window\.isMaximized\(\)/, 'fullscreen resizes must not overwrite the saved note size');
+assert.match(main, /setSize\(DEFAULT_NOTE_SIZE, DEFAULT_NOTE_SIZE\)/, 'leaving fullscreen returns to a small default size');
+assert.match(main, /window\.__tabbinFullscreen = next/, 'toggle tracks its own state instead of reading a stale isFullScreen()');
+assert.match(main, /savedWidth < workArea\.width \? savedWidth : DEFAULT_NOTE_SIZE/, 'a screen-sized saved size falls back to the default');
+assert.match(main, /send\('note:fullscreen', on\)/);
+assert.match(preload, /toggleNoteFullscreen/);
+assert.match(preload, /onNoteFullscreen/);
+assert.match(note, /id="fullscreen"/);
+assert.match(note, /window\.tabbin\.toggleNoteFullscreen\(id\)/);
 
 // --- Collapsed edge pills (rejected) ---------------------------------
 // The mockup drew coloured pills on the edge while the dock is collapsed.
@@ -239,8 +298,8 @@ assert.doesNotMatch(dock, /VISIBLE_BY_MODE = \{[^}]*clear:/, 'no legacy mode nam
 // palette query param, so the page needs no extra IPC.
 assert.match(
   main,
-  /query: \{ id, palette: palette\.join\(','\), bg: migrateDockBg\(config\.dockBg\) \}/,
-  'openNote passes the migrated background to the note page',
+  /query: \{ id, palette: palette\.join\(','\), bg: migrateDockBg\(config\.dockBg\), fonts: noteFonts\.join\('\|'\) \}/,
+  'openNote passes the migrated background and font allowlist to the note page',
 );
 assert.match(
   note,

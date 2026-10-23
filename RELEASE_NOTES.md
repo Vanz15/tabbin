@@ -1,3 +1,62 @@
+## Tabbin v2.3.0 - your fonts, your sizes, ten colours, true fullscreen
+
+A note-taking release. Notes no longer force one typeface or one text size on
+you, the palette grew from six flat colours to ten pastels chosen to stay
+readable, and fullscreen now behaves like a mode instead of a window resize.
+Existing notes carry over: a saved `Caveat` title maps to Parisienne, and inline
+formatting still renders through a legacy alias.
+
+### Added
+
+- **Five bundled typefaces.** Geist, Inter, Public Sans, Gelasio and Parisienne
+  ship inside the app under the SIL Open Font License, so a note looks the same
+  on a computer that never installed the font. Choose a body face for the
+  current selection, and a separate face for the title.
+- **Per-selection text sizes.** 12, 14, 16, 18, 20 and 24 px from the toolbar,
+  with the title scaled to 1.5× the note's base size.
+- **Ten pastel note colours.** One swatch opens a popover of all ten, and each
+  one is checked for 4.5:1 contrast against the note text.
+- **Fullscreen notes.** The header button fills the screen. Leave with the
+  button, `Esc`, or the OS shortcut and the note returns to a normal 430×430
+  window, with the highlight cleared.
+
+### Changed
+
+- **The script face is Parisienne.** Caveat was never actually bundled, so it
+  silently fell back to another font. Titled notes saved with `Caveat` now open
+  in Parisienne; text you had already styled as Caveat still renders through a
+  legacy alias.
+
+### Fixed
+
+- **A fullscreen or screen-sized note can no longer save that size as its own.**
+  The resize saver skips fullscreen, maximized and screen-sized windows, so a
+  note reopened later cannot cover the display.
+- **The font and size controls show the real formatting** under the caret or in
+  the title, instead of a stale selection.
+- **The popovers report their state to assistive technology** with
+  `aria-pressed`, and Escape closes them.
+
+### Notes
+
+- No data format change. Your existing notes, colours and dock settings carry
+  over untouched.
+- Auto-update applies to the installed build only.
+- Checksums are added after the release assets are uploaded, from GitHub's
+  stored digests.
+- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
+
+### Install
+
+Windows-only, x64. The setup file installs Tabbin and receives updates
+automatically.
+
+1. Download **[Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.0/Tabbin-Setup.exe)**.
+2. Windows will warn you the publisher is unknown. Tabbin is not code signed, so this is expected. Click **More info**, then **Run anyway**.
+3. Pick where to install it, finish the installer, and launch it.
+
+Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.0/Tabbin-Portable.exe) runs straight from the folder, but cannot update itself.
+
 ## Tabbin v2.2.4 - one typeface, one search box, and saves that tell you the truth
 
 A consistency release. The dock and the note windows finally look like the same
