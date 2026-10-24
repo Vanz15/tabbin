@@ -37,6 +37,13 @@ Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15
 - Auto-update applies to the installed build only.
 - Full notes in the [README](https://github.com/Vanz15/tabbin#install).
 
+### Checksums
+
+Digests of the assets GitHub actually stored, not the local build output.
+
+- `Tabbin-Setup.exe`: `f8edd6f30de6348139153339b0ff72413108d5eee1dbe39cbb23af08eb5920cb`
+- `Tabbin-Portable.exe`: `2fe705e0a37f50ef4fe8512c5951a1cd9a9ff7ec686d5eb065b64b5cff734811`
+
 ## Tabbin v2.3.0 - your fonts, your sizes, ten colours, true fullscreen
 
 A note-taking release. Notes no longer force one typeface or one text size on
