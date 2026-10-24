@@ -1,3 +1,42 @@
+## Tabbin v2.3.1 - to-do lists and a shortcuts cheat sheet
+
+A small release about getting things done. Notes now hold real checklists,
+and every shortcut lives in one window you can open from Settings. Existing
+notes carry over untouched; no data format changed.
+
+### Added
+
+- **To-do items.** The checklist button in the toolbar turns the current line
+  into a to-do, and typing `[] ` starts one while writing. Clicking the circle
+  strikes the item through and sinks it below the open ones, so the list stays
+  tidy. `Enter` starts the next item, `Ctrl+Enter` checks the current one, and
+  `Backspace` at the start removes the marker or deletes an empty item.
+- **Keyboard-shortcuts window.** Settings → Help lists every formatting, list
+  and to-do shortcut, along with `Esc`, the Windows emoji picker, and dock
+  search.
+- **Star the project.** Settings → Help adds a "Loving Tabbin?" row that opens
+  the GitHub repository in your browser, with a yellow star.
+- **Send feedback opens your browser.** The link no longer creates a second
+  Electron window.
+
+### Install
+
+Windows-only, x64. The setup file installs Tabbin and receives updates
+automatically.
+
+1. Download **[Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.1/Tabbin-Setup.exe)**.
+2. Windows will warn you the publisher is unknown. Tabbin is not code signed, so this is expected. Click **More info**, then **Run anyway**.
+3. Pick where to install it, finish the installer, and launch it.
+
+Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.1/Tabbin-Portable.exe) runs straight from the folder, but cannot update itself.
+
+### Notes
+
+- No data format change. Your existing notes, colours and dock settings carry
+  over untouched.
+- Auto-update applies to the installed build only.
+- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
+
 ## Tabbin v2.3.0 - your fonts, your sizes, ten colours, true fullscreen
 
 A note-taking release. Notes no longer force one typeface or one text size on

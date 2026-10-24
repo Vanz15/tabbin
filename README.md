@@ -43,24 +43,23 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.3.0** lets you set the body text to any bundled typeface, gives the title
-> its own face, adds per-selection text sizes, ten pastel note colours, and a
-> true fullscreen mode that returns to the normal note size when you leave.
-> **v2.2.4** gave the whole app one typeface and one search box, made the pinned
-> state visible, and fixed the list shorthand that doubled your marker.
-> **v2.2.3** fixed your note order resetting on restart, a lost note when
-> creating one during a save, and an internal error on every drag-out.
-> **v2.2.2** added editor keyboard shortcuts — align, strikethrough, indent, and
-> automatic lists — and fixed the Save location row so it shows the folder your
-> notes are actually in. **v2.2.1** brought back the classic coloured-note look
-> and lets you drag a note out of the dock to open it. **v1.0.1** remains
-> available on the releases page if you prefer the older tab-based dock.
+> **v2.3.1** adds to-do checklists inside notes and a keyboard-shortcuts window
+> in Settings, with a Help section that opens the project's GitHub page and
+> sends feedback through your browser. **v2.3.0** let you set the body text to
+> any bundled typeface, gave the title its own face, added per-selection text
+> sizes, ten pastel note colours, and a fullscreen mode that returns to the
+> normal note size when you leave. **v2.2.4** gave the whole app one typeface
+> and one search box and made the pinned state visible. **v2.2.3** fixed your
+> note order resetting on restart and a lost note when creating one during a
+> save. **v2.2.2** added editor keyboard shortcuts — align, strikethrough,
+> indent, and automatic lists. **v1.0.1** remains available on the releases
+> page if you prefer the older tab-based dock.
 
 ## Features
 
 - **Two dock appearances** — classic (coloured tiles that expand on hover) or glass (premium look of the tiles)
 - **Drag a note out to open it** — pull a tile off the dock and it opens where you drop it; drag around inside the dock to reorder instead
-- **Settings panel** — dock side, appearance, auto-hide, dock width, launch-on-startup, save location, and clear-all-notes, behind one menu
+- **Settings panel** — dock side, appearance, auto-hide, dock width, launch-on-startup, save location, clear-all-notes, and help, behind one menu
 - **Find your notes** — Settings shows the folder your notes live in, with one button to open it and another to move them
 - **Right-edge docking** — the layout mirrors, so notes grow away from the edge and the header aligns to it
 - **Content-sized dock** — sized to the notes it shows and centred vertically, rather than filling the screen
@@ -72,7 +71,9 @@ reorder.
 - **Fullscreen notes** — the header button fills the screen; leaving returns the note to its normal 430×430 window
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
-- **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, and automatic lists when you type `1. ` or `- `
+- **To-do checklists** — type `[] ` or use the checklist button; click the circle to strike an item and sink it below the open ones
+- **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, `Ctrl+Enter` to check a to-do, and automatic lists when you type `1. `, `- ` or `[] `
+- **Shortcuts and Help** — Settings opens a window listing every note shortcut and a link to star the project on GitHub
 - **Native-resizable windows** — note windows remember their size across sessions
 - **Per-note pinning** — keep an individual note above other windows, with a per-note colour drawn from the ten-tone palette
 - **Single instance** — relaunching focuses the running dock instead of starting a second copy
@@ -169,11 +170,11 @@ npm test
 | Suite | Covers |
 |---|---|
 | `test_sticky_dock.js` | Dock behavior, reduced IPC bridge, packaging config |
-| `test_v2_features.js` | Rich-text commands, fonts, text sizes, fullscreen, drag reorder, pinning, installer config |
+| `test_v2_features.js` | Rich-text commands, to-dos, fonts, text sizes, fullscreen, shortcuts window, drag reorder, pinning, installer config |
 | `test_updater.js` | Update state machine transitions, rejected events, portable guard, renderer wiring |
 | `test_release_body_checksums.js` | Release-body checksum guard across stale, malformed, truncated and CRLF cases |
 | `test_editor_repaint.js` | Editor repaint guards — echo writes nothing, real changes apply |
-| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, new-note action, pin highlight, title font menu, save success/failure |
+| `test_editor_dom.js` | Real Electron editor DOM: auto-lists, to-do items, new-note action, pin highlight, title font menu, save success/failure |
 | `test_palette_migration.js` | Legacy colour mapping, idempotence, unparseable values, text contrast |
 | `test_save_location.js` | Save folder resolution, validation, and note migration |
 | `test_notes_order.js` | Display order survives relaunch; writes serialize and recover after failure |
@@ -255,6 +256,8 @@ build or an unpackaged dev run, so a test can never replace a real install.
 | `pickFolder()` | Choose a save location |
 | `clear(confirm)` | Delete every note |
 | `toggleNoteAlwaysOnTop(id)` | Pin a note |
+| `openShortcuts()` | Open the keyboard-shortcuts window |
+| `openExternal(url)` | Open an allowlisted project link in your browser |
 | `toggleNoteFullscreen(id)` | Enter or leave fullscreen for a note; resolves to the new state |
 | `updateStatus()` | Current update snapshot |
 | `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` | Drive an update |

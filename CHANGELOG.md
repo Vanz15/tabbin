@@ -5,6 +5,27 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-10-24
+
+To-do checklists inside notes, and one place to look up every shortcut. No
+data format change, so existing notes, colours and dock settings carry over
+untouched.
+
+### Added
+
+- **To-do items.** The checklist button turns the current line into a to-do,
+  and typing `[] ` starts one while writing. Clicking the circle strikes the
+  item through and sinks it below the open ones. `Enter` starts the next item,
+  `Ctrl+Enter` checks the current one, and `Backspace` at the start removes the
+  marker or deletes an empty item.
+- **Keyboard-shortcuts window.** Settings → Help lists every formatting, list
+  and to-do shortcut, along with `Esc`, the Windows emoji picker and dock
+  search.
+- **Star the project.** Settings → Help adds a "Loving Tabbin?" row that opens
+  the GitHub repository in your browser.
+- **Send feedback opens your browser.** The link no longer creates a second
+  Electron window.
+
 ## [2.3.0] - 2026-10-24
 
 Type that behaves the way you want, ten note colours, and a fullscreen mode
@@ -431,6 +452,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.3.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.1
 [2.3.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.0
 [2.2.4]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.4
 [2.2.3]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.3
