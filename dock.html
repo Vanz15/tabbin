@@ -280,6 +280,22 @@
         background: rgba(255, 255, 255, 0.08);
         color: var(--ink);
       }
+      .button.wide {
+        width: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 10px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .button.star svg {
+        width: 15px;
+        height: 15px;
+        fill: #f5c542;
+        stroke: none;
+      }
       .quit {
         color: var(--danger);
       }
@@ -1228,6 +1244,22 @@
               <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16"><path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
+          <h4>Help</h4>
+          <div class="srow col">
+            <div>
+              <b>Keyboard shortcuts</b><small>Every shortcut available inside notes</small>
+            </div>
+            <button id="shortcutsBtn" class="button wide" title="See keyboard shortcuts" aria-label="See keyboard shortcuts">See keyboard shortcuts</button>
+          </div>
+          <div class="srow col">
+            <div>
+              <b>Loving Tabbin?</b><small>Star the project on GitHub</small>
+            </div>
+            <button id="starRepo" class="button wide star" title="Star Tabbin on GitHub" aria-label="Star Tabbin on GitHub">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+              Star on GitHub
+            </button>
+          </div>
         </div>
         <div class="sfoot">
           <!-- Version and feedback moved out of the dock footer into Settings, so
@@ -1547,7 +1579,7 @@
       };
       document.querySelector("#quit").onclick = () => window.tabbin.quit();
       document.querySelector("#feedback").onclick = () =>
-        window.open("https://github.com/Vanz15/tabbin/issues/new/choose", "_blank");
+        window.tabbin.openExternal("https://github.com/Vanz15/tabbin/issues/new/choose");
       root.addEventListener("mouseleave", () => window.tabbin.cursorLeft());
       // Ctrl K focuses search and Escape clears it, both from the mockup.
       document.addEventListener("keydown", (e) => {
@@ -1649,6 +1681,9 @@
         render();
       };
       document.querySelector("#sback").onclick = () => sets.classList.remove("show");
+      document.querySelector("#shortcutsBtn").onclick = () => window.tabbin.openShortcuts();
+      document.querySelector("#starRepo").onclick = () =>
+        window.tabbin.openExternal("https://github.com/Vanz15/tabbin");
       document.querySelectorAll(".seg[data-s]").forEach((seg) => {
         seg.onclick = (e) => {
           const btn = e.target.closest("button[data-v]");

@@ -409,6 +409,65 @@
       .editor p {
         margin: 0 0 8px;
       }
+      /* To-do items: the bullet is replaced by a clickable circle in the list
+         gutter. The tick is a real button so it survives the saved innerHTML
+         round-trip and keeps its pressed state for assistive technology. */
+      .editor li.todo {
+        list-style: none;
+        position: relative;
+      }
+      .editor li.todo > .tick {
+        position: absolute;
+        left: -22px;
+        top: 0.32em;
+        width: 15px;
+        height: 15px;
+        padding: 0;
+        margin: 0;
+        border: 1.5px solid currentColor;
+        border-radius: 50%;
+        background: none;
+        color: inherit;
+        opacity: 0.55;
+        cursor: pointer;
+        appearance: none;
+        font: inherit;
+      }
+      .editor li.todo > .tick:hover,
+      .editor li.todo > .tick:focus-visible {
+        opacity: 1;
+      }
+      .editor li.todo[data-done="true"] > .tick {
+        background: var(--c);
+        border-color: var(--c);
+        color: #1c1c22;
+        opacity: 1;
+      }
+      .editor li.todo[data-done="true"] > .tick::after {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 1px;
+        width: 5px;
+        height: 8px;
+        border: solid currentColor;
+        border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+      .editor li.todo[data-done="true"] {
+        color: var(--ink3);
+        text-decoration: line-through;
+      }
+      /* Zero-width inline anchor between the absolutely positioned tick and the
+         text. Without it Chromium paints a caret at text offset 0 on the tick
+         itself, so the caret appears inside the circle. */
+      .editor li.todo > .tick-space {
+        display: inline-block;
+        width: 0;
+        height: 1em;
+        padding: 0;
+        margin: 0;
+      }
       .toolbar {
         flex: 0 0 auto;
         display: flex;
@@ -554,6 +613,7 @@
         ><span class="sep"></span
         ><button class="tool" title="Bulleted list" data-cmd="insertUnorderedList"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6" fill="currentColor"/><circle cx="4.5" cy="12" r=".6" fill="currentColor"/><circle cx="4.5" cy="18" r=".6" fill="currentColor"/></svg></button
         ><button class="tool" title="Numbered list" data-cmd="insertOrderedList"><svg viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v4M4 14h3l-3 3h3"/></svg></button
+        ><button class="tool" id="todoBtn" title="To-do list" aria-label="To-do list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="6" r="2.5"/><path d="m3.4 6 1 .9 1.7-1.8"/><circle cx="4.5" cy="18" r="2.5"/><path d="M10 6h10M10 18h10"/></svg></button
         ><span class="sep"></span
         ><button class="tool" title="Outdent" data-cmd="outdent"><svg viewBox="0 0 24 24"><path d="M20 6H10M20 12h-6M20 18H10M7 9l-3 3 3 3"/></svg></button
         ><button class="tool" title="Indent" data-cmd="indent"><svg viewBox="0 0 24 24"><path d="M20 6H10M20 12h-6M20 18H10M4 9l3 3-3 3"/></svg></button
@@ -663,6 +723,7 @@
         if (nextContent !== renderedContent) {
           editor.innerHTML = nextContent;
           renderedContent = nextContent;
+          normalizeTodos();
         }
         pinNote.classList.toggle('on', !!n.alwaysOnTop);
         pinNote.setAttribute('aria-pressed', !!n.alwaysOnTop);
@@ -888,6 +949,248 @@
           setSize(Number(button.dataset.size));
         };
       });
+      // --- To-do items ----------------------------------------------------
+      // A to-do is a list item carrying one non-editable tick button, so the
+      // state lives in the same innerHTML the note already saves.
+      function newTick() {
+        const tick = document.createElement('button');
+        tick.type = 'button';
+        tick.className = 'tick';
+        tick.contentEditable = 'false';
+        tick.tabIndex = -1;
+        tick.setAttribute('aria-pressed', 'false');
+        tick.setAttribute('aria-label', 'Toggle done');
+        return tick;
+      }
+      function newTickSpace() {
+        const space = document.createElement('span');
+        space.className = 'tick-space';
+        space.contentEditable = 'false';
+        return space;
+      }
+      function currentLi() {
+        const sel = window.getSelection();
+        if (!sel || !sel.anchorNode || !editor.contains(sel.anchorNode)) return null;
+        const node = sel.anchorNode.nodeType === Node.ELEMENT_NODE ? sel.anchorNode : sel.anchorNode.parentElement;
+        return node ? node.closest('li') : null;
+      }
+      function captureCaret() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return null;
+        return { node: range.startContainer, offset: range.startOffset };
+      }
+      function caretInItemText(li) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return false;
+        const node = sel.getRangeAt(0).startContainer;
+        return node.nodeType === Node.TEXT_NODE &&
+          !!node.parentElement && node.parentElement.closest('li') === li;
+      }
+      // Re-applying the same range forces Chromium to repaint the caret; a
+      // tick or spacer inserted in front of it otherwise leaves the paint at
+      // the tick's old position until the next layout.
+      function reassertCaret() {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0).cloneRange();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      function restoreCaret(saved) {
+        if (!saved || !saved.node.isConnected) return;
+        // A caret anchored to the list item itself is the case that renders on
+        // top of the tick; move it into the item's text instead.
+        const li = saved.node.nodeType === Node.ELEMENT_NODE
+          ? saved.node.closest && saved.node.closest('li.todo')
+          : saved.node.parentElement && saved.node.parentElement.closest('li.todo');
+        if (saved.node.nodeType !== Node.TEXT_NODE && li) {
+          caretAfterTick(li);
+          return;
+        }
+        const sel = window.getSelection();
+        const range = document.createRange();
+        const length = saved.node.nodeType === Node.TEXT_NODE
+          ? saved.node.textContent.length
+          : saved.node.childNodes.length;
+        range.setStart(saved.node, Math.min(saved.offset, length));
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      // Put the caret at the start of the item's text, so it renders past the
+      // absolutely positioned tick instead of on the tick's own box.
+      function caretAfterTick(li) {
+        if (!li) return;
+        const tick = li.querySelector(':scope > .tick');
+        const space = tick && tick.nextSibling &&
+          tick.nextSibling.nodeType === Node.ELEMENT_NODE &&
+          tick.nextSibling.classList.contains('tick-space') ? tick.nextSibling : tick;
+        let node = space ? space.nextSibling : li.firstChild;
+        if (!node || node.nodeType !== Node.TEXT_NODE) {
+          node = document.createTextNode('');
+          if (space) space.after(node);
+          else li.prepend(node);
+        }
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.setStart(node, 0);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      function setTodo(li, on) {
+        if (!li || on === li.classList.contains('todo')) return;
+        li.classList.toggle('todo', on);
+        if (on) {
+          li.dataset.done = 'false';
+          if (!li.querySelector(':scope > .tick')) li.prepend(newTick(), newTickSpace());
+        } else {
+          delete li.dataset.done;
+          li.querySelectorAll(':scope > .tick, :scope > .tick-space').forEach((node) => node.remove());
+        }
+        markEdited();
+        save();
+      }
+      function toggleDone(li) {
+        if (!li || !li.classList.contains('todo')) return;
+        // Moving the item to the bottom detaches and re-inserts it, which can
+        // reset the selection to the element boundary (LI at offset 0) and draw
+        // the caret on the circle. Remember the exact caret and put it back.
+        const saved = captureCaret();
+        const done = li.dataset.done === 'true';
+        li.dataset.done = String(!done);
+        const tick = li.querySelector(':scope > .tick');
+        if (tick) tick.setAttribute('aria-pressed', String(!done));
+        // Checked items sink to just after the last to-do in their own list, so
+        // trailing blank lines do not push the checked item away from the group.
+        // Unchecking leaves the item where it is so it does not jump again.
+        if (!done) {
+          const list = li.parentElement;
+          const last = [...list.children]
+            .filter((node) => node !== li && node.classList.contains('todo'))
+            .pop();
+          if (last) last.after(li);
+          else list.appendChild(li);
+        }
+        restoreCaret(saved);
+        markEdited();
+        save();
+      }
+      // Enter splits a list item and the browser copies the item's class but not
+      // always the tick, so every edit re-checks the invariant.
+      function normalizeTodos() {
+        editor.querySelectorAll('li.todo').forEach((li) => {
+          let tick = li.querySelector(':scope > .tick');
+          if (!tick) {
+            li.prepend(newTick(), newTickSpace());
+            tick = li.querySelector(':scope > .tick');
+          } else if (tick !== li.firstChild) {
+            li.prepend(tick);
+          }
+          const next = tick.nextSibling;
+          const hasSpace = next && next.nodeType === Node.ELEMENT_NODE && next.classList.contains('tick-space');
+          if (!hasSpace) tick.after(newTickSpace());
+          const keep = tick.nextSibling;
+          li.querySelectorAll(':scope > .tick-space').forEach((space) => {
+            if (space !== keep) space.remove();
+          });
+        });
+        editor.querySelectorAll('li:not(.todo) > .tick, li:not(.todo) > .tick-space').forEach((node) => node.remove());
+      }
+      // Re-clicking the to-do button means "back to plain text", not "plain
+      // bullet". Split the list so the paragraph is not nested inside a <ul>.
+      function todoToParagraph(li) {
+        const list = li.parentElement;
+        // execCommand can leave the list wrapped in a <p>; hoist it out first so
+        // the replacement paragraph is never nested inside another paragraph.
+        const wrapper = list.parentElement;
+        if (wrapper && wrapper.tagName === 'P' && wrapper.children.length === 1) wrapper.replaceWith(list);
+        const paragraph = document.createElement('p');
+        [...li.childNodes].forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE && (node.classList.contains('tick') || node.classList.contains('tick-space'))) return;
+          // Chromium sometimes keeps a <p> inside the converted list item, so
+          // unwrap block wrappers instead of nesting a <p> inside the new one.
+          if (node.nodeType === Node.ELEMENT_NODE && /^(P|DIV)$/.test(node.tagName)) {
+            while (node.firstChild) paragraph.appendChild(node.firstChild);
+            return;
+          }
+          paragraph.appendChild(node);
+        });
+        if (!paragraph.firstChild) paragraph.appendChild(document.createElement('br'));
+        const tailItems = [];
+        for (let next = li.nextElementSibling; next; next = next.nextElementSibling) tailItems.push(next);
+        if (tailItems.length) {
+          const tail = document.createElement(list.tagName.toLowerCase());
+          tailItems.forEach((item) => tail.appendChild(item));
+          list.after(tail);
+        }
+        const hasOther = [...list.children].some((node) => node !== li);
+        if (hasOther) {
+          list.after(paragraph);
+          li.remove();
+        } else {
+          list.replaceWith(paragraph);
+        }
+        const selection = window.getSelection();
+        const range = document.createRange();
+        const br = paragraph.querySelector(':scope > br');
+        if (br) {
+          range.setStartBefore(br);
+          range.collapse(true);
+        } else {
+          range.selectNodeContents(paragraph);
+          range.collapse(false);
+        }
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      document.querySelector('#todoBtn').onmousedown = (e) => {
+        e.preventDefault();
+        editor.focus();
+        const existing = currentLi();
+        if (existing && existing.classList.contains('todo')) {
+          todoToParagraph(existing);
+          markEdited();
+          save();
+          syncTools();
+          return;
+        }
+        let li = existing;
+        if (!li) {
+          document.execCommand('insertUnorderedList', false, null);
+          li = currentLi();
+        }
+        setTodo(li, true);
+        // A caret anchored to the item itself (for example after the editor
+        // regained focus) renders on the tick. Move it into the text instead.
+        if (li && !caretInItemText(li)) caretAfterTick(li);
+        else if (li) reassertCaret();
+        syncTools();
+      };
+      editor.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.tick')) e.preventDefault();
+      });
+      editor.addEventListener('click', (e) => {
+        const tick = e.target.closest('.tick');
+        if (tick) toggleDone(tick.closest('li.todo'));
+      });
+      // A caret anchored to the start of a to-do item (offset 0 of the <li>)
+      // draws on top of the tick. That state can arrive from a toolbar toggle,
+      // an undo, or clicking the gutter, so correct it wherever it appears.
+      document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount || !sel.isCollapsed) return;
+        const range = sel.getRangeAt(0);
+        if (range.startOffset !== 0) return;
+        const node = range.startContainer;
+        if (node.nodeType !== Node.ELEMENT_NODE || !node.closest) return;
+        const li = node.closest('li.todo');
+        if (!li || !editor.contains(li)) return;
+        caretAfterTick(li);
+      });
+      editor.addEventListener('input', normalizeTodos);
       // --- Keyboard shortcuts -------------------------------------------
       // Bold/italic/underline already work because the browser maps Ctrl+B/I/U
       // to execCommand natively. Everything below is new behaviour.
@@ -936,16 +1239,78 @@
         markEdited();
         syncTools();
       });
-      // Automatic lists: typing "1. " or "- " at the start of a block turns it
-      // into a list. execCommand adds its own marker but leaves the typed text,
-      // so remove the trigger first or the line shows "1. 1." or two bullets.
+      // Backspace at the very start of a to-do: an empty item is removed, and a
+      // filled one loses its marker first. Without this the non-editable tick
+      // blocks the key and the item cannot be deleted at all.
+      editor.addEventListener('keydown', (e) => {
+        if (e.key !== 'Backspace') return;
+        const sel = window.getSelection();
+        if (!sel || !sel.isCollapsed || !sel.anchorNode || !editor.contains(sel.anchorNode)) return;
+        const host = sel.anchorNode.nodeType === Node.ELEMENT_NODE ? sel.anchorNode : sel.anchorNode.parentElement;
+        const li = host && host.closest('li.todo');
+        if (!li) return;
+        const caret = sel.getRangeAt(0);
+        const before = document.createRange();
+        before.selectNodeContents(li);
+        before.setEnd(caret.startContainer, caret.startOffset);
+        if (before.toString()) return;
+        e.preventDefault();
+        const list = li.parentElement;
+        if (!li.textContent.trim()) {
+          const previous = li.previousElementSibling;
+          li.remove();
+          if (!list.querySelector('li')) {
+            const paragraph = document.createElement('p');
+            paragraph.appendChild(document.createElement('br'));
+            list.replaceWith(paragraph);
+            caretAfterTick(paragraph);
+          } else {
+            caretAfterTick(previous || list.querySelector('li'));
+          }
+        } else {
+          setTodo(li, false);
+        }
+        markEdited();
+        save();
+        syncTools();
+      });
+      // Keyboard path for checking an item without reaching for the mouse.
+      editor.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return;
+        const li = currentLi() && currentLi().closest('li.todo');
+        if (!li) return;
+        e.preventDefault();
+        toggleDone(li);
+      });
+      // Enter on a to-do clones the tick into the next item but leaves the caret
+      // before it, which renders the caret on top of the circle. Wait for the
+      // split, then put the caret in the new item's text.
+      editor.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        const li = currentLi();
+        if (!li || !li.classList.contains('todo')) return;
+        setTimeout(() => {
+          normalizeTodos();
+          const current = currentLi();
+          if (!current || !current.classList.contains('todo')) return;
+          const sel = window.getSelection();
+          if (!sel || !sel.rangeCount) return;
+          const node = sel.getRangeAt(0).startContainer;
+          const inText = node.nodeType === Node.TEXT_NODE && node.parentElement.closest('li') === current;
+          if (!inText) caretAfterTick(current);
+        }, 0);
+      });
+      // Automatic lists: typing "1. ", "- " or "[] " at the start of a block
+      // turns it into a list. execCommand adds its own marker but leaves the
+      // typed text, so remove the trigger first or the line shows "1. 1." or
+      // two bullets.
       editor.addEventListener('input', () => {
         const sel = window.getSelection();
         if (!sel || !sel.anchorNode || !sel.isCollapsed) return;
         const node = sel.anchorNode;
         if (node.nodeType !== Node.TEXT_NODE || sel.anchorOffset !== node.textContent.length) return;
         const text = node.textContent || '';
-        const trigger = /^(1\. |- )$/.exec(text);
+        const trigger = /^(1\. |- |\[\] )$/.exec(text);
         if (!trigger) return;
         const block = node.parentElement;
         if (!block || block.closest('ul,ol,li')) return;
@@ -956,7 +1321,12 @@
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
-        document.execCommand(trigger[0] === '- ' ? 'insertUnorderedList' : 'insertOrderedList', false, null);
+        document.execCommand(trigger[0] === '1. ' ? 'insertOrderedList' : 'insertUnorderedList', false, null);
+        if (trigger[0] === '[] ') {
+          const li = currentLi();
+          setTodo(li, true);
+          caretAfterTick(li);
+        }
         markEdited();
         syncTools();
       });

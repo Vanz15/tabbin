@@ -1,6 +1,6 @@
 {
   "name": "tabbin",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "A lightweight, hover-activated workspace for organizing quick notes without interrupting your workflow.",
   "main": "main.js",
   "author": "Vanz15 <vanz15@users.noreply.github.com>",
@@ -36,6 +36,7 @@
       "loading.html",
       "dock.html",
       "note.html",
+      "shortcuts.html",
       "icon.ico",
       "icon.png",
       "package.json",

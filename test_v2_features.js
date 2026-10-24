@@ -374,8 +374,8 @@ assert.equal(
 );
 assert.equal(
   (main.match(/icon: appIcon\(\)/g) || []).length,
-  2,
-  'dock and note windows must resolve their icon through the same helper',
+  3,
+  'dock, note and shortcuts windows must resolve their icon through the same helper',
 );
 
 // A white-on-dark surface anywhere on the note page is invisible on the light
@@ -836,6 +836,10 @@ assert.match(note, /\.editor::-webkit-scrollbar/);
 assert.match(note, /title="Strikethrough" data-cmd="strikeThrough"/);
 assert.match(note, /title="Numbered list" data-cmd="insertOrderedList"><svg/);
 assert.match(note, /title="Bulleted list" data-cmd="insertUnorderedList"><svg/);
+assert.match(note, /id="todoBtn" title="To-do list"/);
+assert.ok(note.includes('\\[\\] '), 'the "[] " trigger must start a to-do list');
+assert.match(note, /\.editor li\.todo\[data-done="true"\] \{/);
+assert.match(note, /\.editor li\.todo > \.tick-space/, 'a zero-width anchor keeps the caret off the tick');
 assert.match(note, /title="Align left"/);
 assert.match(note, /title="Align center"/);
 assert.match(note, /title="Align right"/);
@@ -1279,5 +1283,35 @@ assert.match(
   'indent only applies inside a list, so Tab still leaves the field elsewhere',
 );
 assert.match(note, /id="newNote"[^>]*title="New note"|id="newNote"/, 'note window exposes a new-note button');
+
+// --- Keyboard shortcuts help window ---------------------------------------
+const shortcuts = fs.readFileSync('shortcuts.html', 'utf8');
+assert.match(dock, /id="shortcutsBtn"/, 'Settings exposes the shortcuts entry point');
+assert.match(dock, /See keyboard shortcuts/, 'the shortcuts button is labelled in words');
+assert.match(dock, /window\.tabbin\.openShortcuts\(\)/, 'the button opens the shortcuts window');
+assert.match(preload, /openShortcuts: \(\) => ipcRenderer\.invoke\('shortcuts:open'\)/);
+assert.match(main, /ipcMain\.handle\('shortcuts:open'/);
+assert.match(main, /loadFile\('shortcuts\.html'\)/);
+assert.ok(pkg.build.files.includes('shortcuts.html'), 'the shortcuts window must ship with the app');
+assert.match(shortcuts, /<kbd>\[\]<\/kbd> then <kbd>Space<\/kbd>/, 'the [] Space trigger is documented');
+assert.match(shortcuts, /<kbd>Ctrl<\/kbd><span class="plus">\+<\/span><kbd>Alt<\/kbd><span class="plus">\+<\/span><kbd>S<\/kbd>/);
+assert.match(shortcuts, /<kbd>Win<\/kbd>/, 'the Windows emoji shortcut is documented');
+assert.match(shortcuts, /<kbd>Ctrl<\/kbd><span class="plus">\+<\/span><kbd>Enter<\/kbd>/, 'the to-do toggle is documented');
+assert.match(shortcuts, /html, body \{ height: 100%; \}/, 'the shortcuts window owns the viewport height');
+assert.match(shortcuts, /overflow: hidden;/, 'the page itself must not scroll a second time');
+assert.match(shortcuts, /overflow-y: auto;/, 'the content pane is the single scroll container');
+assert.doesNotMatch(shortcuts, /id="close"/, 'the native title bar is the only close control');
+assert.doesNotMatch(shortcuts, /New note/, 'the unimplemented new-note shortcut is not listed');
+assert.match(shortcuts, /script-src 'self' 'unsafe-inline'/, 'the shortcuts page may run its own close handler');
+assert.doesNotMatch(shortcuts, /starRepo/, 'the star action lives in Settings, not the shortcuts window');
+assert.match(dock, /id="starRepo"/, 'Settings offers the GitHub star link');
+assert.match(dock, /Loving Tabbin\?/);
+assert.match(dock, /window\.tabbin\.openExternal\("https:\/\/github\.com\/Vanz15\/tabbin"\)/);
+assert.match(dock, /\.button\.star svg \{[\s\S]*?fill: #f5c542/, 'the star glyph is yellow');
+assert.match(main, /ipcMain\.handle\('shell:open-external'/);
+assert.match(main, /!target\.startsWith\('https:\/\/github\.com\/Vanz15\/tabbin'\)/, 'external links are allowlisted');
+assert.match(preload, /openExternal: url => ipcRenderer\.invoke\('shell:open-external', url\)/);
+assert.match(dock, /window\.tabbin\.openExternal\("https:\/\/github\.com\/Vanz15\/tabbin\/issues\/new\/choose"\)/);
+assert.doesNotMatch(dock, /window\.open\("https:\/\/github\.com\/Vanz15\/tabbin\/issues/, 'feedback opens the system browser');
 
 console.log('PASS: Tabbin rich-text, drag reorder, transparent dock, native-resizable notes, per-note pinning, and installer configuration');

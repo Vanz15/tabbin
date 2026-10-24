@@ -9,6 +9,7 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 let dock;
 let loadingWindow;
+let shortcutsWindow = null;
 let dockState = 'hidden';
 let hideTimer = null;
 // Natural height of the renderer's note list, reported on every render so the
@@ -651,6 +652,34 @@ ipcMain.handle('notes:toggle-fullscreen', (_, id) => {
   window.__tabbinFullscreen = next;
   window.setFullScreen(next);
   return next;
+});
+ipcMain.handle('shortcuts:open', () => {
+  if (shortcutsWindow && !shortcutsWindow.isDestroyed()) {
+    shortcutsWindow.show();
+    shortcutsWindow.focus();
+    return;
+  }
+  shortcutsWindow = new BrowserWindow({
+    width: 520,
+    height: 660,
+    minWidth: 420,
+    minHeight: 420,
+    title: 'Keyboard Shortcuts',
+    backgroundColor: '#141418',
+    icon: appIcon(),
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  shortcutsWindow.loadFile('shortcuts.html');
+  shortcutsWindow.on('closed', () => { shortcutsWindow = null; });
+});
+// Links open in the user's browser, not a second Electron window. Only the
+// project's own GitHub pages are allowed, so a stray URL cannot turn the app
+// into a general-purpose browser launcher.
+ipcMain.handle('shell:open-external', (_, url) => {
+  const target = String(url || '');
+  if (!target.startsWith('https://github.com/Vanz15/tabbin')) return false;
+  shell.openExternal(target);
+  return true;
 });
 // Clear every note at once (Settings "Clear all notes"). Backed up first so
 // a single accidental tap cannot wipe the file irrecoverably.
