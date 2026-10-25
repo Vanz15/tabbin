@@ -177,7 +177,9 @@ function nextAction(state) {
 function isVisible(state) {
   if (!state) return false;
   if (state.status === STATUS.UNSUPPORTED) return !state.nudgeDismissed;
-  return [STATUS.AVAILABLE, STATUS.DOWNLOADING, STATUS.READY, STATUS.ERROR].indexOf(
+  // An offline check or a failed download is not worth a row: the app keeps
+  // working, and the next check will try again on its own.
+  return [STATUS.AVAILABLE, STATUS.DOWNLOADING, STATUS.READY].indexOf(
     state.status,
   ) !== -1;
 }

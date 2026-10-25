@@ -278,7 +278,6 @@ function hideDock() {
 function onEdgeEnter() { if (dockState === 'hidden' || dockState === 'hiding') { clearHideTimer(); showDock(); } }
 function scheduleHide() {
   if (dockState === 'revealed' && !hideTimer) {
-    dockState = 'hiding';
     hideTimer = setTimeout(() => { hideTimer = null; hideDock(); }, 400);
   }
 }
@@ -291,11 +290,15 @@ function startEdgeWatcher() {
     const workArea = display.workArea;
     const hotZone = 12;
     if (!config.edgeHover) { if (dockState === 'hidden') showDock(); return; }
-    const edgeHit = config.edge === 'right' ? point.x >= workArea.x + workArea.width - hotZone : point.x <= workArea.x + hotZone;
+    const bounds = dock.getBounds();
+    // Reveal and stay both use the same padded span, so a reveal can never land
+    // outside the window and bounce straight back into a hide (the corner blink).
+    const edgePad = 4;
+    const inSpan = point.y >= bounds.y - edgePad && point.y <= bounds.y + bounds.height + edgePad;
+    const edgeHit = (config.edge === 'right' ? point.x >= workArea.x + workArea.width - hotZone : point.x <= workArea.x + hotZone) && inSpan;
     if ((dockState === 'hidden' || !dock.isVisible()) && edgeHit) { onEdgeEnter(); return; }
     if (dockState === 'hidden' || !dock.isVisible()) return;
-    const bounds = dock.getBounds();
-    const insideDock = point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+    const insideDock = point.x >= bounds.x && point.x <= bounds.x + bounds.width && inSpan;
     if (insideDock) clearHideTimer(); else scheduleHide();
   }, 50);
 }

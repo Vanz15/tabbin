@@ -17,6 +17,15 @@ assert.match(main, /requestSingleInstanceLock\(\)/);
 assert.match(main, /second-instance/);
 assert.match(main, /const appIcon = \(\) =>/);
 assert.match(main, /hideTimer = setTimeout/);
+// Edge reveal is limited to the dock's own vertical span (with 4px of slack),
+// and the stay check reuses that span so a reveal cannot instantly hide again.
+assert.match(main, /const edgePad = 4/);
+assert.match(main, /point\.y >= bounds\.y - edgePad && point\.y <= bounds\.y \+ bounds\.height \+ edgePad/);
+assert.match(main, /const insideDock = [^;]*inSpan/, 'the stay check must reuse the reveal span');
+const scheduleBlock = (main.match(/function scheduleHide\(\)[\s\S]*?\n\}/) || [''])[0];
+assert.ok(scheduleBlock, 'scheduleHide must be extractable');
+assert.doesNotMatch(scheduleBlock, /dockState = 'hiding'/,
+  'a cancelled hide must not leave the dock stuck in the hiding state');
 assert.match(main, /dock\.setFocusable\(true\)/);
 assert.match(main, /dock\.setFocusable\(false\)/);
 assert.match(main, /createLoadingWindow\(\)/);

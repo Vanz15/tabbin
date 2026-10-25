@@ -445,9 +445,6 @@
       .update.ready {
         background: rgba(20, 46, 36, 0.78);
       }
-      .update.error {
-        background: rgba(56, 26, 32, 0.78);
-      }
       .update .label {
         flex: 1;
         min-width: 0;
@@ -1344,9 +1341,7 @@
           updateEl.onclick = null;
           return;
         }
-        updateEl.className =
-          "update" +
-          (s.status === "ready" ? " ready" : s.status === "error" ? " error" : "");
+        updateEl.className = "update" + (s.status === "ready" ? " ready" : "");
         if (s.status === "unsupported") {
           paint("Portable build can't update itself — install Tabbin-Setup.exe", {
             dismiss: true,
@@ -1358,14 +1353,8 @@
           return;
         }
         if (s.status === "ready") {
-          paint("Restart to install v" + s.availableVersion, {
+          paint("Click to install v" + s.availableVersion, {
             onClick: () => window.tabbin.installUpdate(),
-          });
-          return;
-        }
-        if (s.status === "error") {
-          paint("Update failed — click to retry", {
-            onClick: () => window.tabbin.checkForUpdates(),
           });
           return;
         }
@@ -1580,7 +1569,18 @@
       document.querySelector("#quit").onclick = () => window.tabbin.quit();
       document.querySelector("#feedback").onclick = () =>
         window.tabbin.openExternal("https://github.com/Vanz15/tabbin/issues/new/choose");
-      root.addEventListener("mouseleave", () => window.tabbin.cursorLeft());
+      root.addEventListener("mouseleave", () => {
+        closeSearch();
+        closeMenu();
+        window.tabbin.cursorLeft();
+      });
+      // A hidden dock must come back with a clean header, whether it was hidden
+      // by leaving the edge, the Hide row, or opening a note.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "hidden") return;
+        closeSearch();
+        closeMenu();
+      });
       // Ctrl K focuses search and Escape clears it, both from the mockup.
       document.addEventListener("keydown", (e) => {
         // Escape closes the menu first, then the search field, so it always undoes

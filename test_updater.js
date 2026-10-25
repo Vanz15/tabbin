@@ -53,6 +53,15 @@ const at = (status) => createInitialState({ status });
   assert.equal(isVisible(s), false);
 }
 
+{
+  // Offline checks and failed downloads stay silent: the state and update.log
+  // keep the error, but the dock draws no row and never asks for a retry.
+  const s = apply(at(STATUS.AVAILABLE), 'error', { message: 'getaddrinfo ENOTFOUND' });
+  assert.equal(s.status, STATUS.ERROR, 'the error is still recorded for diagnostics');
+  assert.equal(s.message, 'getaddrinfo ENOTFOUND');
+  assert.equal(isVisible(s), false, 'a failed check must not surface a row');
+}
+
 // --- Reducer: illegal transitions are rejected, not applied --------------
 // A rejected event must return the *same object* so callers can skip work.
 {

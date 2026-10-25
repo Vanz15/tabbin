@@ -673,6 +673,25 @@ for (const id of ['gear', 'hide', 'quit']) {
     id + ' must live inside the overflow menu');
 }
 
+// Leaving or hiding the dock clears both header layers, so the next reveal
+// never shows a stale menu or a filtered note list.
+assert.match(
+  dock,
+  /root\.addEventListener\("mouseleave",[\s\S]{0,140}closeSearch\(\);[\s\S]{0,80}closeMenu\(\);/,
+  'leaving the dock must close search and the menu',
+);
+assert.match(
+  dock,
+  /addEventListener\("visibilitychange",[\s\S]{0,240}closeSearch\(\);[\s\S]{0,80}closeMenu\(\);/,
+  'hiding the dock must close search and the menu',
+);
+
+// A failed update check stays silent. Only a ready download earns a row, and
+// that row says a click installs it.
+assert.match(dock, /Click to install v/, 'the ready row must say a click installs the update');
+assert.doesNotMatch(dock, /Update failed/, 'offline failures must not paint a row');
+assert.doesNotMatch(dock, /\.update\.error/, 'the failure style must be gone');
+
 // Version and feedback left the dock footer and now sit in the settings footer.
 const footBlock = (dock.match(/<div class="foot">[\s\S]*?<\/div>\s*<!--/) || [''])[0];
 assert.ok(footBlock.length > 0, 'the .foot block must be extractable');
