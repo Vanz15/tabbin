@@ -33,6 +33,13 @@ Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15
 - Auto-update applies to the installed build only.
 - Full notes in the [README](https://github.com/Vanz15/tabbin#install).
 
+### Checksums
+
+Digests of the assets GitHub actually stored, not the local build output.
+
+- `Tabbin-Setup.exe`: `bcc22036ba9c424562b69edc68989bb82122f9236f2d2d9903d4e75f4dd90a34`
+- `Tabbin-Portable.exe`: `682966c51052ca5c47c951286e7983e8b3f5ac402668afbcd93d36592a3a4164`
+
 ## Tabbin v2.3.1 - to-do lists and a shortcuts cheat sheet
 
 A small release about getting things done. Notes now hold real checklists,
