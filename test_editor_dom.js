@@ -86,9 +86,9 @@ async function openNote(bg) {
   return window;
 }
 
-function press(window, keyCode) {
-  window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
-  window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+function press(window, keyCode, modifiers = []) {
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
 }
 
 async function enterText(window, text, initialHtml = '') {
@@ -179,7 +179,7 @@ async function main() {
     assert.strictEqual(nested.nestedLists, 0, 'a marker inside a list must not nest a list');
 
     // To-do items: the toolbar button, the "[] " trigger, and checking an item
-    // (sink to the bottom, strike through, stay put when unchecked).
+    // (strike through and stay in place, so indented children do not separate).
     const todoFromToolbar = await glass.webContents.executeJavaScript(`(() => {
       const editor = document.querySelector('#editor');
       editor.innerHTML = '<p>buy milk</p>';
@@ -319,24 +319,24 @@ async function main() {
       const first = editor.querySelector('li.todo');
       first.querySelector('.tick').click();
       const items = [...editor.querySelectorAll('li.todo')];
-      const next = items[items.length - 1].nextElementSibling;
       return {
         done: first.dataset.done,
         pressed: first.querySelector('.tick').getAttribute('aria-pressed'),
         order: items.map((item) => item.textContent.trim()),
+        position: [...editor.querySelectorAll('li')].map((item) => item.textContent.trim()),
         strike: getComputedStyle(first).textDecorationLine,
-        beforeBlank: !!next && !next.classList.contains('todo'),
       };
     })()`);
     assert.strictEqual(toggled.done, 'true', 'clicking the tick must mark the item done');
     assert.strictEqual(toggled.pressed, 'true', 'the tick must report its pressed state');
-    assert.deepStrictEqual(toggled.order, ['second', 'first'], 'a checked item must sink below unchecked items');
+    assert.deepStrictEqual(toggled.order, ['first', 'second'], 'a checked item must stay where it is');
+    assert.deepStrictEqual(toggled.position, ['first', 'second', ''],
+      'checking must not reorder the list, including trailing blank lines');
     assert.match(toggled.strike, /line-through/, 'a checked item must be struck through');
-    assert.ok(toggled.beforeBlank, 'a checked item must stop after the last to-do, before trailing blank lines');
 
     const untoggled = await glass.webContents.executeJavaScript(`(() => {
       const editor = document.querySelector('#editor');
-      const first = editor.querySelectorAll('li.todo')[1];
+      const first = editor.querySelectorAll('li.todo')[0];
       first.querySelector('.tick').click();
       const items = [...editor.querySelectorAll('li.todo')];
       return {
@@ -346,7 +346,7 @@ async function main() {
       };
     })()`);
     assert.strictEqual(untoggled.done, 'false', 'clicking again must uncheck the item');
-    assert.deepStrictEqual(untoggled.order, ['second', 'first'], 'unchecking must not move the item again');
+    assert.deepStrictEqual(untoggled.order, ['first', 'second'], 'unchecking must not move the item');
     assert.strictEqual(untoggled.strike, 'none', 'unchecking must remove the strike-through');
 
     await delay(600);
@@ -455,8 +455,7 @@ async function main() {
     assert.strictEqual(nextItem.text, 'task 2', `typing must land in the new item: ${nextItem.html}`);
     assert.ok(nextItem.tickFirst, `the new item's tick must stay first: ${nextItem.html}`);
 
-    // Checking an item moves it, and the caret must stay in that item's text
-    // rather than collapsing onto the circle. Repeated clicks must keep it too.
+    // Checking an item leaves it in place and keeps the caret in its text.
     const caretKept = await glass.webContents.executeJavaScript(`(() => {
       const editor = document.querySelector('#editor');
       const item = (text) => '<li class="todo" data-done="false">'
@@ -477,13 +476,13 @@ async function main() {
       return {
         order: [...editor.querySelectorAll('li.todo')].map((li) => li.textContent.trim()),
         caretText: anchor.nodeType === Node.TEXT_NODE,
-        caretInMoved: anchor.parentElement.closest('li') === first,
+        caretInItem: anchor.parentElement.closest('li') === first,
         offset: after.anchorOffset,
       };
     })()`);
-    assert.deepStrictEqual(caretKept.order, ['task 1.b', 'task 1.c', 'task 1.a'], 'checking must sink the item');
+    assert.deepStrictEqual(caretKept.order, ['task 1.a', 'task 1.b', 'task 1.c'], 'checking must not move the item');
     assert.ok(caretKept.caretText, 'the caret must stay in a text node after checking');
-    assert.ok(caretKept.caretInMoved, 'the caret must stay in the item that was checked');
+    assert.ok(caretKept.caretInItem, 'the caret must stay in the item that was checked');
     assert.strictEqual(caretKept.offset, 2, 'the caret must keep its offset');
 
     const caretKeptAgain = await glass.webContents.executeJavaScript(`(() => {
@@ -493,15 +492,180 @@ async function main() {
       const anchor = after.anchorNode;
       return {
         done: first.dataset.done,
+        order: [...document.querySelectorAll('#editor li.todo')].map((li) => li.textContent.trim()),
         caretText: anchor.nodeType === Node.TEXT_NODE,
-        caretInMoved: anchor.parentElement.closest('li') === first,
+        caretInItem: anchor.parentElement.closest('li') === first,
         offset: after.anchorOffset,
       };
     })()`);
     assert.strictEqual(caretKeptAgain.done, 'false', 'a second click must uncheck the item');
+    assert.deepStrictEqual(caretKeptAgain.order, ['task 1.a', 'task 1.b', 'task 1.c'],
+      'unchecking must not move the item either');
     assert.ok(caretKeptAgain.caretText, 'the caret must stay in text after a second click');
-    assert.ok(caretKeptAgain.caretInMoved, 'the caret must stay in the item after a second click');
+    assert.ok(caretKeptAgain.caretInItem, 'the caret must stay in the item after a second click');
     assert.strictEqual(caretKeptAgain.offset, 2, 'the caret offset must survive a second click');
+
+    // Tab nests a to-do without losing its tick, and Shift+Tab brings it back
+    // as a to-do. execCommand used to rebuild the item and leave a plain bullet.
+    await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      editor.innerHTML = '<ul>'
+        + '<li class="todo" data-done="false"><button class="tick" contenteditable="false" tabindex="-1" aria-pressed="false"></button>alpha</li>'
+        + '<li class="todo" data-done="false"><button class="tick" contenteditable="false" tabindex="-1" aria-pressed="false"></button>beta</li>'
+        + '</ul>';
+      editor.focus();
+      const text = editor.querySelectorAll('li.todo')[1].lastChild;
+      const range = document.createRange();
+      range.setStart(text, 2);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    })()`);
+    press(glass, 'Tab');
+    await delay(80);
+    const indented = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      const item = [...editor.querySelectorAll('li.todo')]
+        .find((li) => li.textContent.trim() === 'beta');
+      const nested = item.parentElement;
+      const selection = window.getSelection();
+      const anchor = selection.anchorNode;
+      return {
+        todos: editor.querySelectorAll('li.todo').length,
+        todo: item.classList.contains('todo'),
+        tickFirst: item.firstChild.classList.contains('tick'),
+        nested: nested.tagName === 'UL' && nested.parentElement === editor.querySelector('li.todo'),
+        caretInText: anchor.nodeType === Node.TEXT_NODE
+          && anchor.parentElement.closest('li') === item,
+        offset: selection.anchorOffset,
+        html: editor.innerHTML,
+      };
+    })()`);
+    assert.strictEqual(indented.todos, 2, `indenting must keep both to-dos: ${indented.html}`);
+    assert.ok(indented.todo, `indenting must keep the to-do marker: ${indented.html}`);
+    assert.ok(indented.tickFirst, `indenting must keep the tick first: ${indented.html}`);
+    assert.ok(indented.nested, `indenting must nest under the previous item: ${indented.html}`);
+    assert.ok(indented.caretInText, `the caret must stay in the indented item's text: ${indented.html}`);
+    assert.strictEqual(indented.offset, 2, 'indenting must keep the caret offset');
+
+    press(glass, 'Tab', ['shift']);
+    await delay(80);
+    const outdented = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      const item = [...editor.querySelectorAll('li.todo')]
+        .find((li) => li.textContent.trim() === 'beta');
+      const selection = window.getSelection();
+      const anchor = selection.anchorNode;
+      return {
+        todo: item.classList.contains('todo'),
+        tickFirst: item.firstChild.classList.contains('tick'),
+        topLevel: item.parentElement.tagName === 'UL'
+          && item.parentElement.parentElement.id === 'editor',
+        emptyNested: editor.querySelectorAll('li ul, li ol').length,
+        caretInText: anchor.nodeType === Node.TEXT_NODE
+          && anchor.parentElement.closest('li') === item,
+        offset: selection.anchorOffset,
+        html: editor.innerHTML,
+      };
+    })()`);
+    assert.ok(outdented.todo, `outdenting must keep the to-do marker: ${outdented.html}`);
+    assert.ok(outdented.tickFirst, `outdenting must keep the tick first: ${outdented.html}`);
+    assert.ok(outdented.topLevel, `outdenting must return the item to the outer list: ${outdented.html}`);
+    assert.strictEqual(outdented.emptyNested, 0, `outdenting must not leave an empty nested list: ${outdented.html}`);
+    assert.ok(outdented.caretInText, 'the caret must stay in the outdented item text');
+    assert.strictEqual(outdented.offset, 2, 'outdenting must keep the caret offset');
+
+    press(glass, 'Tab', ['shift']);
+    await delay(80);
+    const topOutdent = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      const item = [...editor.querySelectorAll('li.todo')]
+        .find((li) => li.textContent.trim() === 'beta');
+      return {
+        todo: item.classList.contains('todo'),
+        tickFirst: item.firstChild.classList.contains('tick'),
+        lists: editor.querySelectorAll('ul,ol').length,
+        todos: editor.querySelectorAll('li.todo').length,
+        html: editor.innerHTML,
+      };
+    })()`);
+    assert.ok(topOutdent.todo, `a top-level to-do must survive Shift+Tab: ${topOutdent.html}`);
+    assert.ok(topOutdent.tickFirst, `a top-level to-do must keep its tick: ${topOutdent.html}`);
+    assert.strictEqual(topOutdent.lists, 1, `a top-level outdent must not change the list: ${topOutdent.html}`);
+    assert.strictEqual(topOutdent.todos, 2, `a top-level outdent must not drop to-dos: ${topOutdent.html}`);
+
+    // A checked parent keeps its indented child attached and in order.
+    const nestedCheck = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      const item = (text, extra = '') => '<li class="todo" data-done="false">'
+        + '<button class="tick" contenteditable="false" tabindex="-1" aria-pressed="false"></button>'
+        + text + extra + '</li>';
+      editor.innerHTML = '<ul>'
+        + item('parent', '<ul>' + item('child 1', '<ul>' + item('grandchild') + '</ul>') + '</ul>')
+        + '</ul>';
+      const parent = editor.querySelector('li.todo');
+      parent.querySelector('.tick').click();
+      const child = parent.querySelector('ul > li.todo');
+      const grandchild = child.querySelector('ul > li.todo');
+      return {
+        order: [...editor.querySelectorAll('li.todo')]
+          .map((li) => li.childNodes[1].textContent.trim()),
+        childNested: child.parentElement.parentElement === parent,
+        grandchildNested: grandchild.parentElement.parentElement === child,
+        childDone: child.dataset.done,
+        childPressed: child.querySelector('.tick').getAttribute('aria-pressed'),
+        grandchildDone: grandchild.dataset.done,
+        grandchildPressed: grandchild.querySelector('.tick').getAttribute('aria-pressed'),
+        html: editor.innerHTML,
+      };
+    })()`);
+    assert.deepStrictEqual(nestedCheck.order, ['parent', 'child 1', 'grandchild'],
+      `checking must not separate a parent from its children: ${nestedCheck.html}`);
+    assert.ok(nestedCheck.childNested, `the child must stay nested under the checked parent: ${nestedCheck.html}`);
+    assert.ok(nestedCheck.grandchildNested, `the grandchild must keep its parent: ${nestedCheck.html}`);
+    assert.strictEqual(nestedCheck.childDone, 'true', 'checking a parent must check its child');
+    assert.strictEqual(nestedCheck.childPressed, 'true', 'the child circle must fill with the parent');
+    assert.strictEqual(nestedCheck.grandchildDone, 'true', 'checking a parent must check its grandchild');
+    assert.strictEqual(nestedCheck.grandchildPressed, 'true', 'the grandchild circle must fill with the parent');
+
+    const nestedUncheck = await glass.webContents.executeJavaScript(`(() => {
+      const editor = document.querySelector('#editor');
+      const parent = editor.querySelector('li.todo');
+      parent.querySelector('.tick').click();
+      const child = parent.querySelector('ul > li.todo');
+      const grandchild = child.querySelector('ul > li.todo');
+      return {
+        parentDone: parent.dataset.done,
+        childDone: child.dataset.done,
+        childPressed: child.querySelector('.tick').getAttribute('aria-pressed'),
+        grandchildDone: grandchild.dataset.done,
+        grandchildPressed: grandchild.querySelector('.tick').getAttribute('aria-pressed'),
+      };
+    })()`);
+    assert.strictEqual(nestedUncheck.parentDone, 'false', 'a second click must uncheck the parent');
+    assert.strictEqual(nestedUncheck.childDone, 'false', 'unchecking a parent must uncheck its child');
+    assert.strictEqual(nestedUncheck.childPressed, 'false', 'the child circle must empty with the parent');
+    assert.strictEqual(nestedUncheck.grandchildDone, 'false', 'unchecking a parent must uncheck its grandchild');
+    assert.strictEqual(nestedUncheck.grandchildPressed, 'false', 'the grandchild circle must empty with the parent');
+
+    // The delete icon shares the title baseline with the font and colour
+    // pickers; a missing offset left its glyph a few pixels lower.
+    const headerAlign = await glass.webContents.executeJavaScript(`(() => {
+      const middle = (element) => {
+        const box = element.getBoundingClientRect();
+        return box.top + box.height / 2;
+      };
+      return {
+        trash: middle(document.querySelector('#delete').querySelector('svg')),
+        font: middle(document.querySelector('#fontBtn')),
+        colour: middle(document.querySelector('#colorBtn')),
+      };
+    })()`);
+    assert.ok(Math.abs(headerAlign.trash - headerAlign.font) <= 1,
+      `the trash icon must centre with the font picker: ${JSON.stringify(headerAlign)}`);
+    assert.ok(Math.abs(headerAlign.trash - headerAlign.colour) <= 1,
+      `the trash icon must centre with the colour picker: ${JSON.stringify(headerAlign)}`);
 
     await glass.webContents.executeJavaScript("document.querySelector('#newNote').click()");
     await waitFor('new-note action', () => createCalls === 1);

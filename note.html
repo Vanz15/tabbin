@@ -312,6 +312,11 @@
         background: var(--c);
         cursor: pointer;
       }
+      /* The trash sits on the title's baseline with the two pickers; without
+         this offset its icon rode 3px lower than theirs. */
+      #delete {
+        margin-bottom: 3px;
+      }
       .classic .colorBtn {
         border-color: rgba(28, 28, 34, 0.35);
       }
@@ -1053,28 +1058,18 @@
         markEdited();
         save();
       }
+      function setDone(li, done) {
+        [li, ...li.querySelectorAll('li.todo')].forEach((item) => {
+          item.dataset.done = String(done);
+          const tick = item.querySelector(':scope > .tick');
+          if (tick) tick.setAttribute('aria-pressed', String(done));
+        });
+      }
       function toggleDone(li) {
         if (!li || !li.classList.contains('todo')) return;
-        // Moving the item to the bottom detaches and re-inserts it, which can
-        // reset the selection to the element boundary (LI at offset 0) and draw
-        // the caret on the circle. Remember the exact caret and put it back.
-        const saved = captureCaret();
-        const done = li.dataset.done === 'true';
-        li.dataset.done = String(!done);
-        const tick = li.querySelector(':scope > .tick');
-        if (tick) tick.setAttribute('aria-pressed', String(!done));
-        // Checked items sink to just after the last to-do in their own list, so
-        // trailing blank lines do not push the checked item away from the group.
-        // Unchecking leaves the item where it is so it does not jump again.
-        if (!done) {
-          const list = li.parentElement;
-          const last = [...list.children]
-            .filter((node) => node !== li && node.classList.contains('todo'))
-            .pop();
-          if (last) last.after(li);
-          else list.appendChild(li);
-        }
-        restoreCaret(saved);
+        // Ticking a parent covers its indented children, so their circles fill
+        // with it instead of showing an unchecked child under a struck parent.
+        setDone(li, li.dataset.done !== 'true');
         markEdited();
         save();
       }
@@ -1227,6 +1222,26 @@
       // which is the single most common complaint about rich-text editors. A
       // Tab in a paragraph with no list would insert a tab character, so that
       // case is left alone and focus still moves.
+      // execCommand rebuilds a list item and drops its to-do class, so a to-do
+      // moves its own node instead and keeps its tick. A top-level to-do stays
+      // put when outdented: the only thing past it is a plain line.
+      function indentTodo(li) {
+        const previous = li.previousElementSibling;
+        if (!previous) return;
+        let nested = previous.querySelector(':scope > ul, :scope > ol');
+        if (!nested) {
+          nested = document.createElement(li.parentElement.tagName.toLowerCase());
+          previous.appendChild(nested);
+        }
+        nested.appendChild(li);
+      }
+      function outdentTodo(li) {
+        const list = li.parentElement;
+        const parent = list.parentElement;
+        if (!parent || parent.tagName !== 'LI') return;
+        parent.after(li);
+        if (!list.querySelector('li')) list.remove();
+      }
       editor.addEventListener('keydown', (e) => {
         if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey) return;
         const sel = window.getSelection();
@@ -1235,6 +1250,17 @@
           !!sel.anchorNode.parentElement.closest('ul,ol');
         if (!inList) return;
         e.preventDefault();
+        const li = currentLi();
+        if (li && li.classList.contains('todo')) {
+          const saved = captureCaret();
+          if (e.shiftKey) outdentTodo(li);
+          else indentTodo(li);
+          restoreCaret(saved);
+          markEdited();
+          save();
+          syncTools();
+          return;
+        }
         document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
         markEdited();
         syncTools();
