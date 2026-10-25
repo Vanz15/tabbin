@@ -26,6 +26,13 @@ Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15
 - Auto-update applies to the installed build only.
 - Full notes in the [README](https://github.com/Vanz15/tabbin#install).
 
+### Checksums
+
+Digests of the assets GitHub actually stored, not the local build output.
+
+- `Tabbin-Setup.exe`: `94bccd28b8916c1b0acea132af4c9f2fc177f68cafadb54e1c68f4862bcbdafd`
+- `Tabbin-Portable.exe`: `d71451868b0d40018137de591ba887ac49b360bae2b8a2c1d2c5c1c89cb28c70`
+
 ## Tabbin v2.3.2 - to-do lists keep their shape
 
 A follow-up to the to-do lists in 2.3.1. Ticking an item no longer moves it,
