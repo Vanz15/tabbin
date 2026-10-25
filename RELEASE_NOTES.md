@@ -1,3 +1,31 @@
+## Tabbin v2.3.3 - a steadier dock edge
+
+A polish release for the dock. It no longer flickers at the corners, it opens only beside its own height, and it comes back with the menu and search closed. Failed update checks stopped painting a red row as well. No data format change.
+
+### Fixed
+
+- **No corner flicker.** The dock now reveals only when the cursor is level with the dock, with four pixels of slack, so reaching for the top-left or bottom-left corner no longer starts a show-and-hide loop. The stay check uses the same span.
+- **Cancelled hides stay healthy.** Returning to the dock before the 400 ms hide lands no longer leaves auto-hide stuck, so the dock still hides when the cursor leaves again.
+- **Clean return.** Leaving the dock or hiding it closes the overflow menu and the search box, so the dock never comes back showing options or a filtered list.
+- **Quiet update failures.** An offline check or a failed download no longer shows an "Update failed" row. The next scheduled check retries on its own.
+
+### Install
+
+Windows-only, x64. The setup file installs Tabbin and receives updates automatically.
+
+1. Download **[Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.3/Tabbin-Setup.exe)**.
+2. Windows will warn you the publisher is unknown. Tabbin is not code signed, so this is expected. Click **More info**, then **Run anyway**.
+3. Pick where to install it, finish the installer, and launch it.
+
+Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.3/Tabbin-Portable.exe) runs straight from the folder, but cannot update itself.
+
+### Notes
+
+- Download progress still appears while an update is fetching, and a ready update reads "Click to install".
+- No data format change. Existing notes and settings carry over untouched.
+- Auto-update applies to the installed build only.
+- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
+
 ## Tabbin v2.3.2 - to-do lists keep their shape
 
 A follow-up to the to-do lists in 2.3.1. Ticking an item no longer moves it,

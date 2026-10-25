@@ -5,6 +5,17 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2026-10-25
+
+A steadier dock edge. The dock reveals only beside its own height, so the corners no longer flicker, and it returns with the menu and search closed. Failed update checks stay silent.
+
+### Fixed
+
+- **No corner flicker.** Reveal is limited to the dock's vertical span with four pixels of slack, and the stay check uses the same span, so the show-and-hide loop at the corners is gone.
+- **Auto-hide cannot stick.** A hide cancelled by returning to the dock no longer leaves the state machine in its hiding state.
+- **Clean return.** Leaving or hiding the dock closes the overflow menu and the search box.
+- **Quiet update failures.** Offline checks and failed downloads keep the dock silent instead of showing an error row; the next scheduled check retries. A ready update reads "Click to install".
+
 ## [2.3.2] - 2026-10-25
 
 To-do lists keep their shape. Checked items no longer move, so indented

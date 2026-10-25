@@ -43,7 +43,7 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.3.2** fixes to-dos so checked items stay in place with their indented
+> **v2.3.3** keeps the dock from flickering at the corners, limits edge reveal to the dock's own height, closes the menu and search when the dock hides, and keeps failed update checks quiet. **v2.3.2** fixes to-dos so checked items stay in place with their indented
 > children, `Tab` and `Shift+Tab` keep the checkbox marker, checking a parent
 > checks its children, and the trash icon lines up with the font and colour
 > pickers. **v2.3.1** added to-do checklists inside notes and a
