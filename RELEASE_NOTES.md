@@ -1,3 +1,38 @@
+## Tabbin v2.3.2 - to-do lists keep their shape
+
+A follow-up to the to-do lists in 2.3.1. Ticking an item no longer moves it,
+indenting keeps the checkbox, and a checked parent carries its children with
+it. No data format change.
+
+### Fixed
+
+- **Checked items stay in place.** Ticking a to-do no longer sends it below the
+  open ones, so indented sub-items keep their parent and order.
+- **Indent keeps to-dos.** `Tab` and `Shift+Tab` move the item itself, so the
+  circle and to-do behaviour survive. Outdenting a top-level to-do leaves it a
+  checkbox.
+- **Parent checks children.** The circles of every indented child fill and empty
+  with the parent.
+- **Trash icon aligned.** The delete button now centres with the font and colour
+  pickers.
+
+### Install
+
+Windows-only, x64. The setup file installs Tabbin and receives updates
+automatically.
+
+1. Download **[Tabbin-Setup.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.2/Tabbin-Setup.exe)**.
+2. Windows will warn you the publisher is unknown. Tabbin is not code signed, so this is expected. Click **More info**, then **Run anyway**.
+3. Pick where to install it, finish the installer, and launch it.
+
+Not wanting to install anything? [Tabbin-Portable.exe](https://github.com/Vanz15/tabbin/releases/download/v2.3.2/Tabbin-Portable.exe) runs straight from the folder, but cannot update itself.
+
+### Notes
+
+- No data format change. Existing notes and settings carry over untouched.
+- Auto-update applies to the installed build only.
+- Full notes in the [README](https://github.com/Vanz15/tabbin#install).
+
 ## Tabbin v2.3.1 - to-do lists and a shortcuts cheat sheet
 
 A small release about getting things done. Notes now hold real checklists,

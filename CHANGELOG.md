@@ -5,6 +5,24 @@ All notable changes to Tabbin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-10-25
+
+To-do lists keep their shape. Checked items no longer move, so indented
+children stay attached, and indent keys no longer turn a checkbox into a plain
+bullet. No data format change.
+
+### Fixed
+
+- **Checked items stay in place.** Ticking a to-do no longer sends it below the
+  open ones, which used to strand any indented sub-items behind.
+- **Indent keeps to-dos.** `Tab` and `Shift+Tab` move the item itself instead of
+  rebuilding it, so the circle and to-do behaviour survive. A top-level to-do
+  stays a checkbox when outdented.
+- **Checking a parent checks its children.** The circles of every indented child
+  fill and empty with the parent.
+- **Trash icon aligned.** The delete button now sits on the same baseline as the
+  font and colour pickers.
+
 ## [2.3.1] - 2026-10-24
 
 To-do checklists inside notes, and one place to look up every shortcut. No
@@ -452,6 +470,7 @@ No user-facing changes; version bumps used to exercise the auto-update path.
 - Settings window (beta reliability focus)
 - Right-edge docking (planned for v1.1)
 
+[2.3.2]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.2
 [2.3.1]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.1
 [2.3.0]: https://github.com/Vanz15/tabbin/releases/tag/v2.3.0
 [2.2.4]: https://github.com/Vanz15/tabbin/releases/tag/v2.2.4

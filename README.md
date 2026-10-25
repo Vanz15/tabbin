@@ -43,16 +43,20 @@ of the dock to open it where you drop it, or drag around inside the dock to
 reorder.
 
 > [!NOTE]
-> **v2.3.1** adds to-do checklists inside notes and a keyboard-shortcuts window
-> in Settings, with a Help section that opens the project's GitHub page and
-> sends feedback through your browser. **v2.3.0** let you set the body text to
-> any bundled typeface, gave the title its own face, added per-selection text
-> sizes, ten pastel note colours, and a fullscreen mode that returns to the
-> normal note size when you leave. **v2.2.4** gave the whole app one typeface
-> and one search box and made the pinned state visible. **v2.2.3** fixed your
-> note order resetting on restart and a lost note when creating one during a
-> save. **v2.2.2** added editor keyboard shortcuts — align, strikethrough,
-> indent, and automatic lists. **v1.0.1** remains available on the releases
+> **v2.3.2** fixes to-dos so checked items stay in place with their indented
+> children, `Tab` and `Shift+Tab` keep the checkbox marker, checking a parent
+> checks its children, and the trash icon lines up with the font and colour
+> pickers. **v2.3.1** added to-do checklists inside notes and a
+> keyboard-shortcuts window in Settings, with a Help section that opens the
+> project's GitHub page and sends feedback through your browser. **v2.3.0** let
+> you set the body text to any bundled typeface, gave the title its own face,
+> added per-selection text sizes, ten pastel note colours, and a fullscreen mode
+> that returns to the normal note size when you leave. **v2.2.4** gave the whole
+> app one typeface and one search box and made the pinned state visible.
+> **v2.2.3** fixed your note order resetting on restart and a lost note when
+> creating one during a save. **v2.2.2** added editor keyboard shortcuts —
+> align, strikethrough, indent, and automatic lists. **v1.0.1** remains
+> available on the releases
 > page if you prefer the older tab-based dock.
 
 ## Features
@@ -71,7 +75,7 @@ reorder.
 - **Fullscreen notes** — the header button fills the screen; leaving returns the note to its normal 430×430 window
 - **Always on top** — stays above fullscreen and maximized windows via `setAlwaysOnTop(true, 'screen-saver')`, and `setFullScreenable(false)` keeps it reachable inside fullscreen apps
 - **Rich-text editing** — bold, italic, underline, strikethrough, lists, indent/outdent, alignment, and format blocks, with the toolbar reflecting the caret's current formatting
-- **To-do checklists** — type `[] ` or use the checklist button; click the circle to strike an item and sink it below the open ones
+- **To-do checklists** — type `[] ` or use the checklist button; click the circle to strike an item through in place, and checking a parent checks its indented children
 - **Keyboard shortcuts** — `Ctrl+L` / `Ctrl+E` / `Ctrl+R` to align, `Ctrl+Alt+S` for strikethrough, `Tab` and `Shift+Tab` to indent and outdent inside a list, `Ctrl+Enter` to check a to-do, and automatic lists when you type `1. `, `- ` or `[] `
 - **Shortcuts and Help** — Settings opens a window listing every note shortcut and a link to star the project on GitHub
 - **Native-resizable windows** — note windows remember their size across sessions
